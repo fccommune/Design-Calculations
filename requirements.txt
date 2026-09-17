@@ -1,0 +1,12 @@
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Flask-Mail==0.9.1
+Flask-Migrate==4.0.7
+python-dotenv==1.0.1
+psycopg2-binary==2.9.12
+Werkzeug==3.0.3
+
+# GAD Automation (Globe valve)
+openpyxl==3.1.5
+pywin32==312; sys_platform == "win32"

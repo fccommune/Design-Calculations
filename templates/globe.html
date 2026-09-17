@@ -1,0 +1,888 @@
+{% extends "base.html" %}
+{% block title %}Globe GAD{% endblock %}
+
+{% block style %}
+<style>
+    :root{
+        --pf-primary:#4361ee;
+        --pf-accent:#7209b7;
+        --pf-border:#e5e8f0;
+        --pf-surface:#ffffff;
+        --pf-muted:#8a94a6;
+        --pf-bg-soft:#f7f8fc;
+    }
+
+    .pf-hero{ display:flex; align-items:center; gap:14px; }
+    .pf-hero-icon{
+        width:44px; height:44px; border-radius:12px; flex-shrink:0;
+        background:linear-gradient(135deg,var(--pf-primary),var(--pf-accent));
+        display:flex; align-items:center; justify-content:center;
+        box-shadow:0 6px 16px rgba(67,97,238,.28);
+    }
+    .pf-hero-icon svg{ width:22px; height:22px; fill:#fff; }
+    .pf-hero h3{ margin:0; font-weight:700; font-size:20px; color:#1a1f2e; }
+    .pf-hero p{ margin:2px 0 0; }
+
+    .pf-card{
+        background:var(--pf-surface); border:1px solid var(--pf-border); border-radius:14px;
+        box-shadow:0 2px 10px rgba(20,30,60,.04); margin-bottom:20px; overflow:hidden;
+    }
+    .pf-card-header{ display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--pf-border); }
+    .pf-step-badge{
+        width:26px; height:26px; border-radius:50%; background:var(--pf-bg-soft); color:var(--pf-primary);
+        font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+        border:1px solid var(--pf-border); transition:.15s ease;
+    }
+    .pf-card.done .pf-step-badge{ background:#e6f6ee; color:#12a454; border-color:#c6ead6; }
+    .pf-card-header h3{ margin:0; font-size:14.5px; font-weight:700; color:#1a1f2e; }
+    .pf-card-header .pf-sub{ font-size:11.5px; color:var(--pf-muted); margin-left:auto; }
+    .pf-card-body{ padding:20px; }
+
+    .pf-dropzone{
+        display:flex; align-items:center; gap:12px; border:1.5px dashed #c7cee0; border-radius:10px;
+        padding:12px 16px; text-align:left; cursor:pointer; transition:.15s ease; background:var(--pf-bg-soft); margin:0;
+    }
+    .pf-dropzone:hover{ border-color:var(--pf-primary); background:#eef1fe; }
+    .pf-dropzone.dragover{ border-color:var(--pf-primary); background:#eef1fe; box-shadow:0 0 0 4px rgba(67,97,238,.1); }
+    .pf-dropzone-icon{
+        width:34px; height:34px; border-radius:50%; background:#fff; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(20,30,60,.08);
+    }
+    .pf-dropzone-icon i{ font-size:14px; color:var(--pf-primary); }
+    .pf-dropzone-text{ overflow:hidden; }
+    .pf-dropzone-title{ font-size:12.5px; font-weight:600; color:#1a1f2e; margin-bottom:1px; }
+    .pf-dropzone-title span{ color:var(--pf-primary); text-decoration:underline; }
+    .pf-dropzone-hint{ font-size:10.5px; color:var(--pf-muted); }
+    .pf-dropzone input[type=file]{ position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; }
+
+    .pf-file-chip{
+        display:none; align-items:center; gap:12px; margin-top:14px; padding:10px 14px;
+        border:1px solid var(--pf-border); border-radius:10px; background:var(--pf-bg-soft);
+    }
+    .pf-file-chip.show{ display:flex; }
+    .pf-file-chip-icon{
+        width:34px; height:34px; border-radius:8px; background:#e6f6ee; color:#12a454;
+        display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px;
+    }
+    .pf-file-chip-text{ overflow:hidden; }
+    .pf-file-chip-name{ font-size:12.5px; font-weight:600; color:#1a1f2e; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pf-file-chip-size{ font-size:11px; color:var(--pf-muted); }
+    .pf-file-chip-remove{
+        margin-left:auto; border:none; background:none; color:var(--pf-muted); cursor:pointer; font-size:13px;
+        width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    }
+    .pf-file-chip-remove:hover{ background:#fde8e8; color:#e03131; }
+
+    .pf-btn-primary{
+        background:linear-gradient(135deg,var(--pf-primary),var(--pf-accent)); border:none; color:#fff;
+        font-size:13px; font-weight:600; padding:9px 20px; border-radius:9px;
+        box-shadow:0 4px 12px rgba(67,97,238,.28); transition:.15s ease;
+    }
+    .pf-btn-primary:hover:not(:disabled){ transform:translateY(-1px); box-shadow:0 6px 16px rgba(67,97,238,.36); color:#fff; }
+    .pf-btn-primary:disabled{ opacity:.55; transform:none; box-shadow:none; cursor:not-allowed; }
+
+    .pf-btn-success{
+        background:linear-gradient(135deg,#12a454,#0d8c46); border:none; color:#fff;
+        font-size:13px; font-weight:600; padding:9px 22px; border-radius:9px;
+        box-shadow:0 4px 12px rgba(18,164,84,.28); transition:.15s ease;
+    }
+    .pf-btn-success:hover:not(:disabled){ transform:translateY(-1px); box-shadow:0 6px 16px rgba(18,164,84,.36); color:#fff; }
+    .pf-btn-success:disabled{ opacity:.5; box-shadow:none; cursor:not-allowed; transform:none; }
+
+    #rowsTableWrap{ max-height:440px; overflow:auto; border:1px solid var(--pf-border); border-radius:10px; }
+    #rowsTable{ margin-bottom:0; }
+    #rowsTable thead th{
+        position:sticky; top:0; background:#f7f8fc; white-space:nowrap; z-index:1;
+        font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--pf-muted);
+        font-weight:700; border-bottom:1px solid var(--pf-border); padding:.6rem .75rem;
+    }
+    #rowsTable td{ white-space:nowrap; font-size:12.5px; padding:.55rem .75rem; border-color:var(--pf-border); vertical-align:middle; }
+    #rowsTable tbody tr{ cursor:pointer; transition:background .1s; }
+    #rowsTable tbody tr:hover{ background:#f7f8fc; }
+    #rowsTable tbody tr.selected{ background:rgba(67,97,238,.1) !important; box-shadow:inset 3px 0 0 var(--pf-primary); }
+
+    .pf-detail-panel{ display:none; margin-top:18px; padding-top:16px; border-top:1px dashed var(--pf-border); }
+    .pf-detail-panel.show{ display:block; }
+    .pf-detail-panel-title{ font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--pf-muted); font-weight:700; margin-bottom:12px; }
+    .pf-detail-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px 20px; }
+    .pf-detail-divider{
+        grid-column:1 / -1; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--pf-muted);
+        font-weight:700; border-top:1px dashed var(--pf-border); padding-top:10px; margin-top:2px;
+    }
+    .pf-detail-item{ min-width:0; }
+    .pf-detail-label{ display:block; font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:var(--pf-muted); font-weight:700; margin-bottom:4px; }
+    .pf-detail-input{
+        width:100%; border:1px solid var(--pf-border); border-radius:7px; padding:6px 9px;
+        font-size:12.5px; font-weight:600; color:#1a1f2e; background:#fff; transition:.15s ease;
+    }
+    .pf-detail-input:hover{ border-color:#c7cee0; }
+    .pf-detail-input:focus{ outline:none; border-color:var(--pf-primary); box-shadow:0 0 0 3px rgba(67,97,238,.12); }
+    .pf-detail-input.changed{ border-color:#e8590c; background:#fff8f2; }
+    .pf-detail-input.mismatch{ border-color:#e03131; background:#fdecec; }
+    select.pf-detail-input{ cursor:pointer; }
+    .pf-detail-warning{ display:flex; align-items:center; gap:5px; font-size:10px; color:#e03131; font-weight:700; margin-top:4px; }
+
+    .pf-footer{ display:flex; align-items:center; gap:12px; padding:16px 20px; border-top:1px solid var(--pf-border); background:var(--pf-bg-soft); }
+    #selectedInfo{ font-size:12.5px; color:var(--pf-muted); }
+    #selectedInfo.has-selection{ color:#1a1f2e; font-weight:600; }
+
+    .series-badge{ font-size:10px; padding:.25em .55em; border-radius:6px; }
+
+    /* --- Generate on Server: step-by-step progress --- */
+    .pf-progress-modal .modal-content{ border:none; border-radius:14px; overflow:hidden; }
+    .pf-progress-header{ padding:26px 28px 6px; text-align:center; }
+    .pf-progress-header .pf-progress-icon{
+        width:52px; height:52px; border-radius:50%; margin:0 auto 14px; font-size:22px;
+        display:flex; align-items:center; justify-content:center;
+        background:linear-gradient(135deg,var(--pf-primary),var(--pf-accent)); color:#fff;
+        box-shadow:0 6px 16px rgba(67,97,238,.28); animation:pf-pulse 1.8s ease-in-out infinite;
+    }
+    .pf-progress-header h5{ font-weight:700; color:#1a1f2e; margin-bottom:2px; }
+    .pf-progress-header p{ font-size:12.5px; color:var(--pf-muted); margin-bottom:0; }
+    @keyframes pf-pulse{
+        0%,100%{ box-shadow:0 6px 16px rgba(67,97,238,.28); }
+        50%{ box-shadow:0 6px 22px rgba(67,97,238,.5); }
+    }
+
+    .pf-progress-track{ height:6px; border-radius:99px; background:var(--pf-bg-soft); margin:18px 28px 6px; overflow:hidden; }
+    .pf-progress-fill{
+        height:100%; width:0%; border-radius:99px; background:linear-gradient(90deg,var(--pf-primary),var(--pf-accent));
+        transition:width .45s cubic-bezier(.4,0,.2,1);
+    }
+    .pf-progress-pct{ text-align:center; font-size:11px; font-weight:700; color:var(--pf-primary); margin-bottom:10px; }
+
+    .pf-steps{ list-style:none; margin:0; padding:6px 28px 26px; }
+    .pf-step{ display:flex; align-items:center; gap:12px; padding:7px 0; position:relative; }
+    .pf-step-dot{
+        width:24px; height:24px; border-radius:50%; flex-shrink:0; font-size:10.5px; font-weight:700;
+        display:flex; align-items:center; justify-content:center; border:2px solid var(--pf-border);
+        background:#fff; color:var(--pf-muted); transition:.25s ease; z-index:1;
+    }
+    .pf-step-label{ font-size:12.5px; color:var(--pf-muted); font-weight:600; transition:.2s ease; }
+
+    .pf-step.active .pf-step-dot{ border-color:var(--pf-primary); color:var(--pf-primary); background:#eef1fe; animation:pf-dot-spin 1s linear infinite; }
+    .pf-step.active .pf-step-label{ color:#1a1f2e; }
+    .pf-step.done .pf-step-dot{ border-color:#12a454; background:#12a454; color:#fff; }
+    .pf-step.done .pf-step-label{ color:#1a1f2e; }
+    .pf-step.error .pf-step-dot{ border-color:#e03131; background:#e03131; color:#fff; }
+    .pf-step.error .pf-step-label{ color:#e03131; }
+
+    @keyframes pf-dot-spin{
+        0%{ box-shadow:0 0 0 0 rgba(67,97,238,.35); }
+        70%{ box-shadow:0 0 0 6px rgba(67,97,238,0); }
+        100%{ box-shadow:0 0 0 0 rgba(67,97,238,0); }
+    }
+
+    .pf-step-connector{ position:absolute; left:11.5px; top:26px; width:1px; height:calc(100% - 4px); background:var(--pf-border); z-index:0; }
+    .pf-step.done .pf-step-connector{ background:#b7e6c9; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="pf-hero">
+        <div class="pf-hero-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <polygon points="3,7 3,17 12,12"/>
+                <polygon points="21,7 21,17 12,12"/>
+                <rect x="11" y="3" width="2" height="9"/>
+                <circle cx="12" cy="3" r="2.4" fill="none" stroke="#fff" stroke-width="1.6"/>
+            </svg>
+        </div>
+        <div>
+            <h3>Globe Valve GAD</h3>
+            <p class="text-muted mb-0" style="font-size:12.5px;">Generate a General Arrangement Drawing for Series 10/11 (Globe) valves via SolidWorks.</p>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+
+        <div class="pf-card" id="uploadCard">
+            <div class="pf-card-header">
+                <span class="pf-step-badge" id="uploadStepBadge">1</span>
+                <h3>Upload valve BOM</h3>
+                <span class="pf-sub">.xls &middot; .xlsx &middot; .xlsm</span>
+            </div>
+            <div class="pf-card-body">
+                <form id="uploadForm">
+                    <label class="pf-dropzone" id="dropZone">
+                        <div class="pf-dropzone-icon"><i class="fas fa-file-excel"></i></div>
+                        <div class="pf-dropzone-text">
+                            <div class="pf-dropzone-title"><span>Click to browse</span> or drag &amp; drop a file</div>
+                            <div class="pf-dropzone-hint">.xls, .xlsx or .xlsm</div>
+                        </div>
+                        <input type="file" id="excelFile" accept=".xls,.xlsx,.xlsm">
+                    </label>
+
+                    <div class="pf-file-chip" id="fileChip">
+                        <div class="pf-file-chip-icon"><i class="fas fa-file-excel"></i></div>
+                        <div class="pf-file-chip-text">
+                            <div class="pf-file-chip-name" id="fileChipName">&nbsp;</div>
+                            <div class="pf-file-chip-size" id="fileChipSize">&nbsp;</div>
+                        </div>
+                        <button type="button" class="pf-file-chip-remove" id="fileChipRemove" title="Remove file"><i class="fas fa-times"></i></button>
+                    </div>
+
+                    <div class="mt-3 text-right">
+                        <button type="submit" class="pf-btn-primary" id="uploadBtn">
+                            <i class="fas fa-file-upload mr-1"></i> Upload
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="pf-card" id="rowsCard" style="display:none;">
+            <div class="pf-card-header">
+                <span class="pf-step-badge">2</span>
+                <h3>Select a row</h3>
+                <span class="pf-sub" id="rowsCountBadge"></span>
+            </div>
+            <div class="pf-card-body">
+                <div id="rowsTableWrap">
+                    <table class="table table-sm table-hover" id="rowsTable">
+                        <thead><tr id="rowsTableHead"></tr></thead>
+                        <tbody id="rowsTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="pf-detail-panel" id="rowDetailsPanel">
+                    <div class="pf-detail-panel-title">Row details &mdash; edit any value before generating. Fields highlighted red don't match master data.</div>
+                    <div class="pf-detail-grid" id="rowDetailsGrid"></div>
+                </div>
+            </div>
+            <div class="pf-footer">
+                <span id="selectedInfo">No row selected.</span>
+                <div class="ml-auto" style="display:flex; gap:10px;">
+                    <button type="button" class="pf-btn-primary" id="generateServerBtn" disabled title="Generates the PDF right now, using SolidWorks on the server this app is running on">
+                        <i class="fas fa-server mr-1"></i> Generate on Server
+                    </button>
+                    <button type="button" class="pf-btn-success" id="generateBtn" disabled title="Downloads a package to generate the PDF locally, on your own computer's SolidWorks">
+                        <i class="fas fa-file-download mr-1"></i> Download GAD Package
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<div class="modal fade" id="msgModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content" style="border:none; border-radius:14px; overflow:hidden;">
+            <div class="modal-body text-center" style="padding:32px 28px 20px;">
+                <div id="msgModalIconWrap" style="width:56px; height:56px; border-radius:50%;
+                            display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:24px;">
+                    <i id="msgModalIcon" class="fas"></i>
+                </div>
+                <h5 id="msgModalTitle" style="font-weight:700; color:#1a1f2e;"></h5>
+                <p id="msgModalBody" class="text-muted mb-0" style="font-size:13px;"></p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center" style="padding:8px 28px 26px;">
+                <button type="button" class="pf-btn-primary" data-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="mismatchModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content" style="border:none; border-radius:14px; overflow:hidden;">
+            <div class="modal-body text-center" style="padding:32px 28px 20px;">
+                <div style="width:56px; height:56px; border-radius:50%; background:#fff1e6; color:#e8590c;
+                            display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:24px;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h5 style="font-weight:700; color:#1a1f2e;">Master Data Mismatch</h5>
+                <p class="text-muted mb-2" style="font-size:13px;">
+                    These field(s) don't match any known master data value, so generation will likely fail to find a matching drawing block:
+                </p>
+                <div id="mismatchFieldList" style="text-align:left; font-size:12.5px; font-weight:700; color:#e03131; background:#fdecec; border-radius:8px; padding:10px 14px; margin-top:8px;"></div>
+            </div>
+            <div class="modal-footer border-0 justify-content-center" style="padding:8px 28px 26px; gap:10px;">
+                <button type="button" class="btn btn-sm" style="border:1px solid var(--pf-border); background:#fff; color:#495057; font-size:12.5px; font-weight:600; padding:8px 18px; border-radius:9px;" data-dismiss="modal">Go Back &amp; Fix</button>
+                <button type="button" class="pf-btn-primary" id="generateAnywayBtn" style="background:linear-gradient(135deg,#e8590c,#d9480f); box-shadow:0 4px 12px rgba(232,89,12,.3);">Generate Anyway</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade pf-progress-modal" id="progressModal" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="pf-progress-header">
+                <div class="pf-progress-icon" id="progressIcon"><i class="fas fa-server"></i></div>
+                <h5>Generating GAD Drawing</h5>
+                <p>Driving SolidWorks on the server - please keep this open.</p>
+            </div>
+            <div class="pf-progress-track"><div class="pf-progress-fill" id="progressFill"></div></div>
+            <div class="pf-progress-pct" id="progressPct">0%</div>
+            <ul class="pf-steps" id="progressStepsList"></ul>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+    const UPLOAD_URL = "{{ url_for('dashboard.globe_upload') }}";
+    const FIELD_OPTIONS_URL = "{{ url_for('dashboard.globe_field_options') }}";
+    const GENERATE_URL = "{{ url_for('dashboard.globe_generate') }}";
+    const GENERATE_SERVER_URL = "{{ url_for('dashboard.globe_generate_server') }}";
+    // Flask needs a real token to build these, so build them once with a
+    // placeholder and swap it in at request time.
+    const GENERATE_SERVER_PROGRESS_TMPL = "{{ url_for('dashboard.globe_generate_server_progress', token='__TOKEN__') }}";
+    const GENERATE_SERVER_DOWNLOAD_TMPL = "{{ url_for('dashboard.globe_generate_server_download', token='__TOKEN__') }}";
+    const GENERATE_SERVER_CLOSE_TMPL = "{{ url_for('dashboard.globe_generate_server_close', token='__TOKEN__') }}";
+
+    // Mirrors app/services/solidworks_automation.py's GENERATION_STEPS -
+    // keep these two lists in sync if that pipeline ever changes.
+    const GENERATION_STEP_LABELS = [
+        'Connecting to SolidWorks',
+        'Opening GAD template',
+        'Sheet 1: inserting GA block',
+        'Sheet 1: inserting hookup schematic',
+        'Sheet 1 complete',
+        'Sheet 2 complete',
+        'Sheet 3 complete',
+        'Rebuilding drawing',
+        'Exporting PDF',
+    ];
+
+    const msgModalIconWrap = document.getElementById('msgModalIconWrap');
+    const msgModalIcon = document.getElementById('msgModalIcon');
+    const msgModalTitle = document.getElementById('msgModalTitle');
+    const msgModalBody = document.getElementById('msgModalBody');
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('excelFile');
+    const fileChip = document.getElementById('fileChip');
+    const fileChipName = document.getElementById('fileChipName');
+    const fileChipSize = document.getElementById('fileChipSize');
+    const fileChipRemove = document.getElementById('fileChipRemove');
+    const uploadForm = document.getElementById('uploadForm');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadCard = document.getElementById('uploadCard');
+    const uploadStepBadge = document.getElementById('uploadStepBadge');
+    const rowsCard = document.getElementById('rowsCard');
+    const rowsCountBadge = document.getElementById('rowsCountBadge');
+    const rowsHead = document.getElementById('rowsTableHead');
+    const rowsBody = document.getElementById('rowsTableBody');
+    const rowDetailsPanel = document.getElementById('rowDetailsPanel');
+    const rowDetailsGrid = document.getElementById('rowDetailsGrid');
+    const selectedInfo = document.getElementById('selectedInfo');
+    const generateBtn = document.getElementById('generateBtn');
+    const generateServerBtn = document.getElementById('generateServerBtn');
+    const progressStepsList = document.getElementById('progressStepsList');
+    const progressFill = document.getElementById('progressFill');
+    const progressPct = document.getElementById('progressPct');
+    const progressIcon = document.getElementById('progressIcon');
+
+    let currentHeaders = [];
+    let currentRows = [];
+    let selectedIndex = null;
+    let editedRow = null;
+    let fieldOptions = {};
+    // Set right before showing the "PDF generated successfully" alert for a
+    // server-side generation; consumed (and cleared) once #msgModal closes,
+    // so SolidWorks gets told to close only after the user's acknowledged
+    // that specific message - not on every other alert this modal shows.
+    let pendingSolidWorksCloseToken = null;
+
+    // Uploaded rows and any in-place edits live only in this page's memory -
+    // a reload or navigation loses them with no way to recover, so warn
+    // before that happens (browser shows its own generic confirmation text;
+    // custom messages aren't allowed by modern browsers).
+    window.addEventListener('beforeunload', function (e) {
+        if (currentRows.length) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    const ALERT_STYLES = {
+        success: { icon: 'fa-check-circle', color: '#12a454', bg: '#e6f6ee', title: 'Success' },
+        danger: { icon: 'fa-exclamation-triangle', color: '#e03131', bg: '#fdecec', title: 'Error' },
+        warning: { icon: 'fa-exclamation-circle', color: '#e8590c', bg: '#fff1e6', title: 'Warning' },
+        info: { icon: 'fa-info-circle', color: '#4361ee', bg: '#eef1fe', title: 'Notice' },
+    };
+
+    function showAlert(message, type) {
+        const cfg = ALERT_STYLES[type] || ALERT_STYLES.info;
+        msgModalIconWrap.style.color = cfg.color;
+        msgModalIconWrap.style.background = cfg.bg;
+        msgModalIcon.className = 'fas ' + cfg.icon;
+        msgModalTitle.textContent = cfg.title;
+        msgModalBody.textContent = message;
+        $('#msgModal').modal('show');
+    }
+    function hideAlert() {
+        $('#msgModal').modal('hide');
+    }
+
+    // Fires however the modal closes (OK button, Esc, backdrop click) -
+    // whichever way the user acknowledges it, SolidWorks should still close.
+    $('#msgModal').on('hidden.bs.modal', function () {
+        if (!pendingSolidWorksCloseToken) return;
+        const closeUrl = GENERATE_SERVER_CLOSE_TMPL.replace('__TOKEN__', pendingSolidWorksCloseToken);
+        pendingSolidWorksCloseToken = null;
+        fetch(closeUrl, { method: 'POST' }).catch(function () { /* best-effort */ });
+    });
+
+    function formatBytes(bytes) {
+        if (!bytes) return '0 KB';
+        const kb = bytes / 1024;
+        return kb < 1024 ? kb.toFixed(1) + ' KB' : (kb / 1024).toFixed(1) + ' MB';
+    }
+
+    function updateFileChip() {
+        if (fileInput.files.length) {
+            const f = fileInput.files[0];
+            fileChipName.textContent = f.name;
+            fileChipSize.textContent = formatBytes(f.size);
+            fileChip.classList.add('show');
+        } else {
+            fileChip.classList.remove('show');
+        }
+    }
+
+    fileInput.addEventListener('change', updateFileChip);
+
+    fileChipRemove.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        fileInput.value = '';
+        updateFileChip();
+    });
+
+    ['dragenter', 'dragover'].forEach(function (evt) {
+        dropZone.addEventListener(evt, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('dragover');
+        });
+    });
+    ['dragleave', 'dragend'].forEach(function (evt) {
+        dropZone.addEventListener(evt, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+        });
+    });
+    dropZone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            updateFileChip();
+        }
+    });
+
+    uploadForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        hideAlert();
+
+        if (!fileInput.files.length) {
+            showAlert('Please choose an Excel file first.', 'warning');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('excel_file', fileInput.files[0]);
+
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Uploading...';
+
+        try {
+            const resp = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                showAlert(data.error || 'Upload failed.', 'danger');
+                return;
+            }
+
+            try {
+                const foResp = await fetch(FIELD_OPTIONS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fields: data.headers }),
+                });
+                const foData = await foResp.json();
+                fieldOptions = foResp.ok ? (foData.options || {}) : {};
+            } catch (err) {
+                fieldOptions = {};
+            }
+
+            renderRows(data.headers, data.rows);
+            uploadCard.classList.add('done');
+            uploadStepBadge.innerHTML = '<i class="fas fa-check"></i>';
+            showAlert('Loaded ' + data.rows.length + ' row(s). Select one below.', 'success');
+        } catch (err) {
+            showAlert('Upload failed: ' + err, 'danger');
+        } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-file-upload mr-1"></i> Upload';
+        }
+    });
+
+    function renderRows(headers, rows) {
+        currentHeaders = headers;
+        currentRows = rows;
+        selectedIndex = null;
+        editedRow = null;
+        generateBtn.disabled = true;
+        generateServerBtn.disabled = true;
+        selectedInfo.textContent = 'No row selected.';
+        selectedInfo.classList.remove('has-selection');
+        rowDetailsPanel.classList.remove('show');
+        rowsCountBadge.textContent = rows.length + ' row' + (rows.length === 1 ? '' : 's') + ' loaded';
+
+        rowsHead.innerHTML = '<th>#</th>' + headers.map(h => '<th>' + escapeHtml(h) + '</th>').join('');
+
+        rowsBody.innerHTML = '';
+        rows.forEach(function (row, i) {
+            const tr = document.createElement('tr');
+            tr.dataset.index = i;
+            tr.innerHTML = '<td>' + (i + 1) + '</td>' +
+                headers.map(h => '<td>' + escapeHtml(row[h] == null ? '' : row[h]) + '</td>').join('');
+            tr.addEventListener('click', function () { selectRow(i); });
+            rowsBody.appendChild(tr);
+        });
+
+        rowsCard.style.display = '';
+    }
+
+    function selectRow(i) {
+        selectedIndex = i;
+        editedRow = Object.assign({}, currentRows[i]);
+        Array.from(rowsBody.children).forEach(function (tr, idx) {
+            tr.classList.toggle('selected', idx === i);
+        });
+        updateSelectedInfo();
+        renderRowDetails(currentHeaders, editedRow);
+    }
+
+    function updateSelectedInfo() {
+        const series = String((editedRow && editedRow['Series']) || '').trim();
+        let note = 'Row ' + (selectedIndex + 1) + ' selected (Series ' + (series || '?') + ').';
+        if (series && series !== '10' && series !== '11') {
+            note += ' Only Series 10/11 (Globe) is implemented - generation will be rejected.';
+        }
+        selectedInfo.textContent = note;
+        selectedInfo.classList.add('has-selection');
+        generateBtn.disabled = false;
+        generateServerBtn.disabled = false;
+    }
+
+    function ddmmyyToIso(value) {
+        const m = /^(\d{1,2})-(\d{1,2})-(\d{2}|\d{4})$/.exec(String(value).trim());
+        if (!m) return '';
+        let [, d, mo, y] = m;
+        d = d.padStart(2, '0');
+        mo = mo.padStart(2, '0');
+        if (y.length === 2) y = (parseInt(y, 10) < 70 ? '20' : '19') + y;
+        return y + '-' + mo + '-' + d;
+    }
+
+    function isoToDdmmyy(iso) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+        if (!m) return iso;
+        const [, y, mo, d] = m;
+        return d + '-' + mo + '-' + y.slice(2);
+    }
+
+    function renderRowDetails(headers, row) {
+        function fieldHtml(h, idx) {
+            const raw = row[h];
+            const value = raw == null ? '' : String(raw);
+            const options = fieldOptions[h];
+            const fieldId = 'rd_' + idx;
+
+            if (h === 'Date') {
+                const isoValue = ddmmyyToIso(value);
+                if (isoValue) {
+                    return '<div class="pf-detail-item">' +
+                        '<label class="pf-detail-label" for="' + fieldId + '">' + escapeHtml(h) + '</label>' +
+                        '<input type="date" class="pf-detail-input" id="' + fieldId + '" data-field="' + escapeHtml(h) + '" data-date-field="1" value="' + escapeHtml(isoValue) + '">' +
+                        '</div>';
+                }
+            }
+
+            if (options && options.length) {
+                const mismatch = !options.includes(value);
+                const extraOption = mismatch
+                    ? '<option value="' + escapeHtml(value) + '" selected>' + (value === '' ? '(blank)' : escapeHtml(value)) + ' — not in master data</option>'
+                    : '';
+                const optionsHtml = options.map(function (opt) {
+                    const label = opt === '' ? '(blank)' : opt;
+                    return '<option value="' + escapeHtml(opt) + '"' + (opt === value ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+                }).join('');
+                return '<div class="pf-detail-item">' +
+                    '<label class="pf-detail-label" for="' + fieldId + '">' + escapeHtml(h) + '</label>' +
+                    '<select class="pf-detail-input' + (mismatch ? ' mismatch' : '') + '" id="' + fieldId + '" data-field="' + escapeHtml(h) + '">' +
+                    extraOption + optionsHtml +
+                    '</select>' +
+                    (mismatch ? '<div class="pf-detail-warning"><i class="fas fa-exclamation-triangle"></i> Not found in master data</div>' : '') +
+                    '</div>';
+            }
+
+            return '<div class="pf-detail-item">' +
+                '<label class="pf-detail-label" for="' + fieldId + '">' + escapeHtml(h) + '</label>' +
+                '<input type="text" class="pf-detail-input" id="' + fieldId + '" data-field="' + escapeHtml(h) + '" value="' + escapeHtml(value) + '">' +
+                '</div>';
+        }
+
+        const masterHeaders = headers.filter(h => fieldOptions[h] && fieldOptions[h].length);
+        const otherHeaders = headers.filter(h => !(fieldOptions[h] && fieldOptions[h].length));
+
+        const masterHtml = masterHeaders.map(function (h, i) { return fieldHtml(h, i); }).join('');
+        const otherHtml = otherHeaders.map(function (h, i) { return fieldHtml(h, masterHeaders.length + i); }).join('');
+        const dividerHtml = (masterHeaders.length && otherHeaders.length)
+            ? '<div class="pf-detail-divider">Other Fields</div>'
+            : '';
+
+        rowDetailsGrid.innerHTML = masterHtml + dividerHtml + otherHtml;
+        rowDetailsPanel.classList.add('show');
+    }
+
+    function handleFieldEdit(e) {
+        if (!e.target.classList.contains('pf-detail-input') || !editedRow) return;
+        const field = e.target.dataset.field;
+        const value = e.target.dataset.dateField === '1' ? isoToDdmmyy(e.target.value) : e.target.value;
+        editedRow[field] = value;
+
+        const original = currentRows[selectedIndex][field];
+        const originalStr = original == null ? '' : String(original);
+        e.target.classList.toggle('changed', value !== originalStr);
+
+        const options = fieldOptions[field];
+        if (options && options.length) {
+            const mismatch = !options.includes(value);
+            e.target.classList.toggle('mismatch', mismatch);
+            let warningEl = e.target.parentElement.querySelector('.pf-detail-warning');
+            if (mismatch && !warningEl) {
+                warningEl = document.createElement('div');
+                warningEl.className = 'pf-detail-warning';
+                warningEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Not found in master data';
+                e.target.insertAdjacentElement('afterend', warningEl);
+            } else if (!mismatch && warningEl) {
+                warningEl.remove();
+            }
+        }
+
+        if (field === 'Series') updateSelectedInfo();
+    }
+
+    rowDetailsGrid.addEventListener('input', handleFieldEdit);
+    rowDetailsGrid.addEventListener('change', handleFieldEdit);
+
+    const mismatchFieldList = document.getElementById('mismatchFieldList');
+    const generateAnywayBtn = document.getElementById('generateAnywayBtn');
+    let pendingAction = null;
+
+    function checkMismatchesThenRun(action) {
+        if (selectedIndex === null || !editedRow) return;
+
+        const mismatchedFields = Array.from(rowDetailsGrid.querySelectorAll('.pf-detail-input.mismatch'))
+            .map(function (el) { return el.dataset.field; });
+
+        if (mismatchedFields.length) {
+            pendingAction = action;
+            mismatchFieldList.innerHTML = mismatchedFields.map(function (f) {
+                return '<div>&bull; ' + escapeHtml(f) + '</div>';
+            }).join('');
+            $('#mismatchModal').modal('show');
+            return;
+        }
+
+        runAction(action);
+    }
+
+    function runAction(action) {
+        return action === 'server' ? runGenerateServer() : runGenerate();
+    }
+
+    generateBtn.addEventListener('click', function () { checkMismatchesThenRun('package'); });
+    generateServerBtn.addEventListener('click', function () { checkMismatchesThenRun('server'); });
+
+    generateAnywayBtn.addEventListener('click', function () {
+        $('#mismatchModal').modal('hide');
+        runAction(pendingAction);
+    });
+
+    async function runGenerate() {
+        hideAlert();
+
+        generateBtn.disabled = true;
+        const originalHtml = generateBtn.innerHTML;
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Preparing package...';
+
+        try {
+            const resp = await fetch(GENERATE_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ row: editedRow }),
+            });
+
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+                showAlert(data.error || 'Could not prepare the GAD package.', 'danger');
+                return;
+            }
+
+            const blob = await resp.blob();
+            const disposition = resp.headers.get('Content-Disposition') || '';
+            const match = /filename="?([^";]+)"?/.exec(disposition);
+            const filename = match ? match[1] : 'GAD_package.zip';
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+
+            showAlert(
+                'Package downloaded: ' + filename + '. Unzip it on a computer with SolidWorks installed, ' +
+                'then double-click GadGenerate.exe (see the included README.txt for first-time setup).',
+                'success'
+            );
+        } catch (err) {
+            showAlert('Could not prepare the GAD package: ' + err, 'danger');
+        } finally {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = originalHtml;
+        }
+    }
+
+    function renderProgressSteps() {
+        progressStepsList.innerHTML = GENERATION_STEP_LABELS.map(function (label, i) {
+            const isLast = i === GENERATION_STEP_LABELS.length - 1;
+            return '<li class="pf-step" data-step="' + i + '">' +
+                (isLast ? '' : '<span class="pf-step-connector"></span>') +
+                '<span class="pf-step-dot">' + (i + 1) + '</span>' +
+                '<span class="pf-step-label">' + escapeHtml(label) + '</span>' +
+                '</li>';
+        }).join('');
+    }
+
+    // stepIndex = index of the last COMPLETED step (-1 = nothing yet, see
+    // gad_progress.py). The step actively running is stepIndex + 1.
+    // erroredStepIndex, when not null, is the index of the step that was
+    // running when generation failed.
+    function updateProgressUI(stepIndex, totalSteps, erroredStepIndex) {
+        const completed = Math.min(Math.max(stepIndex + 1, 0), totalSteps);
+        const pct = Math.round((completed / totalSteps) * 100);
+        progressFill.style.width = pct + '%';
+        progressPct.textContent = pct + '%';
+
+        Array.from(progressStepsList.children).forEach(function (li) {
+            const i = parseInt(li.dataset.step, 10);
+            li.classList.remove('active', 'done', 'error');
+            if (erroredStepIndex !== null) {
+                if (i < erroredStepIndex) li.classList.add('done');
+                else if (i === erroredStepIndex) li.classList.add('error');
+            } else if (i <= stepIndex) {
+                li.classList.add('done');
+            } else if (i === stepIndex + 1) {
+                li.classList.add('active');
+            }
+        });
+    }
+
+    function sleep(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
+
+    async function runGenerateServer() {
+        hideAlert();
+
+        generateServerBtn.disabled = true;
+        const originalHtml = generateServerBtn.innerHTML;
+        generateServerBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Starting...';
+
+        try {
+            const resp = await fetch(GENERATE_SERVER_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ row: editedRow }),
+            });
+            const data = await resp.json().catch(() => ({}));
+
+            if (!resp.ok) {
+                showAlert(data.error || 'GAD generation failed.', 'danger');
+                return;
+            }
+
+            const token = data.token;
+            renderProgressSteps();
+            updateProgressUI(-1, GENERATION_STEP_LABELS.length, null);
+            progressIcon.style.background = '';
+            progressIcon.innerHTML = '<i class="fas fa-server"></i>';
+            $('#progressModal').modal('show');
+
+            const progressUrl = GENERATE_SERVER_PROGRESS_TMPL.replace('__TOKEN__', token);
+            let job;
+            while (true) {
+                const pResp = await fetch(progressUrl);
+                job = await pResp.json().catch(() => null);
+                if (!pResp.ok || !job) {
+                    job = { done: true, error: (job && job.error) || 'Lost track of the generation job.' };
+                    break;
+                }
+                updateProgressUI(job.step_index, job.total_steps, job.error !== null ? job.step_index + 1 : null);
+                if (job.done) break;
+                await sleep(700);
+            }
+
+            if (job.error) {
+                progressIcon.innerHTML = '<i class="fas fa-times"></i>';
+                progressIcon.style.background = 'linear-gradient(135deg,#e03131,#c92a2a)';
+                await sleep(600);
+                $('#progressModal').modal('hide');
+                showAlert(job.error, 'danger');
+                return;
+            }
+
+            progressIcon.innerHTML = '<i class="fas fa-check"></i>';
+            progressIcon.style.background = 'linear-gradient(135deg,#12a454,#0d8c46)';
+            await sleep(500);
+            $('#progressModal').modal('hide');
+            progressIcon.style.background = '';
+
+            const downloadUrl = GENERATE_SERVER_DOWNLOAD_TMPL.replace('__TOKEN__', token);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            // Consumed by the #msgModal 'hidden.bs.modal' handler above once
+            // the user dismisses this alert - only then is SolidWorks told
+            // to close (discarding the unsaved drawing, no prompt).
+            pendingSolidWorksCloseToken = token;
+            showAlert('PDF generated successfully.', 'success');
+        } catch (err) {
+            $('#progressModal').modal('hide');
+            showAlert('GAD generation failed: ' + err, 'danger');
+        } finally {
+            generateServerBtn.disabled = false;
+            generateServerBtn.innerHTML = originalHtml;
+        }
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+})();
+</script>
+{% endblock %}

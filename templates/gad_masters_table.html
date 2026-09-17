@@ -1,0 +1,809 @@
+{% extends "base.html" %}
+{% block title %}{{ label }}{% endblock %}
+
+{% block style %}
+<style>
+    :root{
+        --pf-primary:#4361ee;
+        --pf-accent:#7209b7;
+        --pf-border:#e5e8f0;
+        --pf-surface:#ffffff;
+        --pf-muted:#8a94a6;
+        --pf-bg-soft:#f7f8fc;
+    }
+
+    .pf-back{ font-size:12px; color:var(--pf-muted); text-decoration:none; display:inline-flex; align-items:center; gap:6px; margin-bottom:8px; }
+    .pf-back:hover{ color:var(--pf-primary); text-decoration:none; }
+
+    .pf-hero{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+    .pf-hero-left{ display:flex; align-items:center; gap:14px; }
+    .pf-hero-icon{
+        width:44px; height:44px; border-radius:12px; flex-shrink:0;
+        background:linear-gradient(135deg,var(--pf-primary),var(--pf-accent));
+        display:flex; align-items:center; justify-content:center;
+        box-shadow:0 6px 16px rgba(67,97,238,.28);
+    }
+    .pf-hero-icon i{ font-size:19px; color:#fff; }
+    .pf-hero h3{ margin:0; font-weight:700; font-size:20px; color:#1a1f2e; }
+    .pf-hero p{ margin:2px 0 0; }
+
+    .pf-card{
+        background:var(--pf-surface); border:1px solid var(--pf-border); border-radius:14px;
+        box-shadow:0 2px 10px rgba(20,30,60,.04); margin-bottom:20px; overflow:hidden;
+    }
+    .pf-card-header{ display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--pf-border); }
+    .pf-card-header h3{ margin:0; font-size:14.5px; font-weight:700; color:#1a1f2e; }
+    .pf-card-header .pf-sub{ font-size:11.5px; color:var(--pf-muted); margin-left:auto; }
+    .pf-card-body{ padding:20px; }
+
+    .pf-count-pill{
+        display:inline-flex; align-items:baseline; gap:6px; padding:4px 12px; border-radius:999px;
+        background:var(--pf-bg-soft); border:1px solid var(--pf-border); font-size:11.5px; color:var(--pf-muted);
+    }
+    .pf-count-pill b{ font-size:15px; color:#1a1f2e; }
+
+    .pf-dropzone{
+        display:flex; align-items:center; gap:12px; border:1.5px dashed #c7cee0; border-radius:10px;
+        padding:12px 16px; text-align:left; cursor:pointer; transition:.15s ease; background:var(--pf-bg-soft); margin:0;
+    }
+    .pf-dropzone:hover{ border-color:var(--pf-primary); background:#eef1fe; }
+    .pf-dropzone.dragover{ border-color:var(--pf-primary); background:#eef1fe; box-shadow:0 0 0 4px rgba(67,97,238,.1); }
+    .pf-dropzone-icon{
+        width:34px; height:34px; border-radius:50%; background:#fff; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(20,30,60,.08);
+    }
+    .pf-dropzone-icon i{ font-size:14px; color:var(--pf-primary); }
+    .pf-dropzone-text{ overflow:hidden; }
+    .pf-dropzone-title{ font-size:12.5px; font-weight:600; color:#1a1f2e; margin-bottom:1px; }
+    .pf-dropzone-title span{ color:var(--pf-primary); text-decoration:underline; }
+    .pf-dropzone-hint{ font-size:10.5px; color:var(--pf-muted); }
+    .pf-dropzone input[type=file]{ position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; }
+
+    .pf-file-chip{
+        display:none; align-items:center; gap:12px; margin-top:14px; padding:10px 14px;
+        border:1px solid var(--pf-border); border-radius:10px; background:var(--pf-bg-soft);
+    }
+    .pf-file-chip.show{ display:flex; }
+    .pf-file-chip-icon{
+        width:34px; height:34px; border-radius:8px; background:#e6f6ee; color:#12a454;
+        display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px;
+    }
+    .pf-file-chip-text{ overflow:hidden; }
+    .pf-file-chip-name{ font-size:12.5px; font-weight:600; color:#1a1f2e; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pf-file-chip-size{ font-size:11px; color:var(--pf-muted); }
+    .pf-file-chip-remove{
+        margin-left:auto; border:none; background:none; color:var(--pf-muted); cursor:pointer; font-size:13px;
+        width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    }
+    .pf-file-chip-remove:hover{ background:#fde8e8; color:#e03131; }
+
+    .pf-btn-primary{
+        background:linear-gradient(135deg,var(--pf-primary),var(--pf-accent)); border:none; color:#fff;
+        font-size:13px; font-weight:600; padding:9px 20px; border-radius:9px;
+        box-shadow:0 4px 12px rgba(67,97,238,.28); transition:.15s ease;
+    }
+    .pf-btn-primary:hover:not(:disabled){ transform:translateY(-1px); box-shadow:0 6px 16px rgba(67,97,238,.36); color:#fff; }
+    .pf-btn-primary:disabled{ opacity:.55; transform:none; box-shadow:none; cursor:not-allowed; }
+
+    .pf-btn-page{
+        border:1px solid var(--pf-border); background:#fff; color:#1a1f2e; font-size:12px; font-weight:600;
+        padding:6px 12px; border-radius:7px; transition:.15s ease;
+    }
+    .pf-btn-page:hover:not(:disabled){ border-color:var(--pf-primary); color:var(--pf-primary); }
+    .pf-btn-page:disabled{ opacity:.4; cursor:not-allowed; }
+
+    .pf-page-num{
+        border:1px solid var(--pf-border); background:#fff; color:#495057; font-size:12px; font-weight:600;
+        min-width:30px; padding:6px 8px; border-radius:7px; transition:.15s ease;
+    }
+    .pf-page-num:hover{ border-color:var(--pf-primary); color:var(--pf-primary); }
+    .pf-page-num.active{ background:var(--pf-primary); border-color:var(--pf-primary); color:#fff; }
+    .pf-page-num.ellipsis{ border:none; background:none; cursor:default; color:var(--pf-muted); padding:6px 2px; min-width:auto; }
+
+    .pf-replace-row{ display:flex; align-items:center; gap:8px; margin-top:14px; }
+    .pf-replace-row label{ font-size:12px; color:#495057; margin:0; cursor:pointer; user-select:none; }
+    .pf-replace-row input{ cursor:pointer; }
+
+    .pf-col-chip{
+        display:inline-block; font-size:10.5px; font-weight:600; color:#1a1f2e; background:var(--pf-bg-soft);
+        border:1px solid var(--pf-border); border-radius:6px; padding:3px 8px; margin:0 5px 5px 0;
+    }
+
+    #dataTableWrap{ max-height:520px; overflow:auto; }
+    #dataTable{ margin-bottom:0; }
+    #dataTable thead th{
+        position:sticky; top:0; background:#f7f8fc; white-space:nowrap; z-index:1;
+        font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--pf-muted);
+        font-weight:700; border-bottom:1px solid var(--pf-border); padding:.5rem .5rem .5rem .75rem;
+    }
+    #dataTable td{ white-space:nowrap; font-size:12.5px; padding:.5rem .75rem; border-color:var(--pf-border); vertical-align:middle; }
+    #dataTable tbody tr{ cursor:pointer; }
+    #dataTable tbody tr:hover{ background:#f7f8fc; }
+    #dataEmpty{ display:none; text-align:center; padding:40px 20px; color:var(--pf-muted); font-size:12.5px; }
+    #dataEmpty i{ font-size:26px; margin-bottom:10px; display:block; color:#c7cee0; }
+
+    .pf-th-inner{ display:flex; align-items:center; gap:5px; }
+    .pf-filter-btn{
+        border:none; background:transparent; color:#b7bfcf; cursor:pointer; padding:2px 4px; border-radius:4px;
+        font-size:10px; line-height:1; flex-shrink:0;
+    }
+    .pf-filter-btn:hover{ background:rgba(67,97,238,.12); color:var(--pf-primary); }
+    .pf-filter-btn.active{ color:var(--pf-primary); }
+
+    .pf-filter-summary{
+        font-size:11.5px; color:var(--pf-primary); cursor:pointer; white-space:nowrap; display:none;
+        align-items:center; gap:4px;
+    }
+    .pf-filter-summary:hover{ text-decoration:underline; }
+
+    .pf-filter-panel{
+        position:fixed; z-index:2000; width:240px; background:#fff; border:1px solid var(--pf-border); border-radius:10px;
+        box-shadow:0 10px 30px rgba(20,30,60,.18); overflow:hidden; display:none;
+    }
+    .pf-filter-panel-header{
+        display:flex; align-items:center; justify-content:space-between; padding:9px 12px;
+        border-bottom:1px solid var(--pf-border); font-size:11.5px; font-weight:700; color:#1a1f2e;
+    }
+    .pf-filter-panel-close{ border:none; background:none; color:var(--pf-muted); cursor:pointer; font-size:12px; padding:2px; }
+    .pf-filter-panel-close:hover{ color:#e03131; }
+    .pf-filter-panel-search{ padding:8px 12px; border-bottom:1px solid var(--pf-border); }
+    .pf-filter-panel-search input{
+        width:100%; border:1px solid var(--pf-border); border-radius:6px; padding:5px 8px; font-size:12px; outline:none;
+    }
+    .pf-filter-panel-search input:focus{ border-color:var(--pf-primary); }
+    .pf-filter-panel-selectall{ padding:6px 12px; border-bottom:1px solid var(--pf-border); font-size:12px; }
+    .pf-filter-panel-selectall label{ margin:0; cursor:pointer; display:flex; align-items:center; gap:7px; font-weight:600; }
+    .pf-filter-panel-list{ max-height:200px; overflow:auto; padding:6px 12px; }
+    .pf-filter-panel-list label{ display:flex; align-items:center; gap:7px; font-size:12px; padding:3px 0; margin:0; cursor:pointer; color:#333; }
+    .pf-filter-panel-footer{
+        display:flex; align-items:center; justify-content:space-between; padding:8px 12px;
+        border-top:1px solid var(--pf-border); background:var(--pf-bg-soft);
+    }
+    .pf-filter-clear-btn{ border:none; background:none; color:var(--pf-muted); font-size:11.5px; cursor:pointer; padding:4px 2px; }
+    .pf-filter-clear-btn:hover{ color:#e03131; }
+    .pf-filter-apply-btn{ padding:5px 14px; font-size:11.5px; }
+
+    .pf-row-backdrop{ position:fixed; inset:0; background:rgba(15,20,35,.4); z-index:2400; display:none; }
+    .pf-row-backdrop.show{ display:block; }
+
+    .pf-row-panel{
+        position:fixed; top:0; right:0; height:100vh; width:420px; max-width:92vw; background:#fff;
+        box-shadow:-10px 0 30px rgba(20,30,60,.2); z-index:2401; transform:translateX(100%);
+        transition:transform .22s ease; display:flex; flex-direction:column;
+    }
+    .pf-row-panel.show{ transform:translateX(0); }
+    .pf-row-panel-header{
+        display:flex; align-items:center; gap:12px; padding:18px 20px; background:#1a1f2e; flex-shrink:0;
+    }
+    .pf-row-panel-avatar{
+        width:42px; height:42px; border-radius:50%; flex-shrink:0; color:#fff; font-weight:700; font-size:13px;
+        background:linear-gradient(135deg,var(--pf-primary),var(--pf-accent));
+        display:flex; align-items:center; justify-content:center;
+    }
+    .pf-row-panel-title{ font-size:14.5px; font-weight:700; color:#fff; }
+    .pf-row-panel-sub{ font-size:11.5px; color:rgba(255,255,255,.6); margin-top:1px; }
+    .pf-row-panel-close{
+        margin-left:auto; border:none; background:rgba(255,255,255,.1); color:#fff; width:30px; height:30px;
+        border-radius:50%; cursor:pointer; flex-shrink:0; font-size:13px;
+    }
+    .pf-row-panel-close:hover{ background:rgba(255,255,255,.2); }
+    .pf-row-panel-body{ padding:16px 20px; overflow-y:auto; flex:1; }
+    .pf-row-field{
+        border:1px solid var(--pf-border); border-radius:10px; padding:10px 14px; margin-bottom:10px; background:var(--pf-bg-soft);
+    }
+    .pf-row-field-label{ font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--pf-muted); font-weight:700; margin-bottom:3px; }
+    .pf-row-field-value{ font-size:13px; font-weight:600; color:#1a1f2e; word-break:break-word; }
+    .pf-row-field-value.empty{ color:var(--pf-muted); font-weight:400; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <a class="pf-back" href="{{ url_for('dashboard.gad_masters') }}"><i class="fas fa-arrow-left"></i> All master tables</a>
+    <div class="pf-hero">
+        <div class="pf-hero-left">
+            <div class="pf-hero-icon"><i class="fas fa-table"></i></div>
+            <div>
+                <h3>{{ label }}</h3>
+                <p class="text-muted mb-0" style="font-size:12.5px;">Master lookup table used to generate Globe valve GAD drawings.</p>
+            </div>
+        </div>
+        <button type="button" class="pf-btn-primary" data-toggle="modal" data-target="#uploadModal">
+            <i class="fas fa-file-upload mr-1"></i> Upload workbook
+        </button>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+
+        <div class="pf-card">
+            <div class="pf-card-header">
+                <h3>Table data</h3>
+                <span id="filterSummary" class="pf-filter-summary" style="margin-left:auto;" title="Clear all filters">
+                    <i class="fas fa-filter"></i><span id="filterSummaryText"></span> &middot; <u>Clear all</u>
+                </span>
+                <span class="pf-count-pill" style="margin-left:12px;"><b id="rowCount">{{ count }}</b> rows</span>
+            </div>
+            <div class="pf-card-body" style="padding:0;">
+                <div id="dataTableWrap">
+                    <table class="table table-sm table-hover" id="dataTable">
+                        <thead><tr id="dataTableHead"></tr></thead>
+                        <tbody id="dataTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="dataEmpty">
+                    <i class="fas fa-inbox"></i>
+                    <p class="mb-0" id="dataEmptyText">No data yet &mdash; upload a workbook to populate this table.</p>
+                </div>
+            </div>
+            <div class="pf-footer" style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-top:1px solid var(--pf-border); background:var(--pf-bg-soft);">
+                <span id="pageInfo" style="font-size:12px; color:var(--pf-muted);"></span>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <button type="button" class="pf-btn-page" id="prevPageBtn"><i class="fas fa-chevron-left"></i> Prev</button>
+                    <div id="pageNumbers" style="display:flex; gap:4px;"></div>
+                    <button type="button" class="pf-btn-page" id="nextPageBtn">Next <i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<div class="pf-filter-panel" id="filterPanel">
+    <div class="pf-filter-panel-header">
+        <span id="filterPanelTitle"></span>
+        <button type="button" class="pf-filter-panel-close" id="filterPanelClose"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="pf-filter-panel-search">
+        <input type="text" id="filterSearchInput" placeholder="Search values...">
+    </div>
+    <div class="pf-filter-panel-selectall">
+        <label><input type="checkbox" id="filterSelectAll"> Select all</label>
+    </div>
+    <div class="pf-filter-panel-list" id="filterPanelList"></div>
+    <div class="pf-filter-panel-footer">
+        <button type="button" class="pf-filter-clear-btn" id="filterPanelClear">Clear filter</button>
+        <button type="button" class="pf-btn-primary pf-filter-apply-btn" id="filterPanelApply">Apply</button>
+    </div>
+</div>
+
+<div class="pf-row-backdrop" id="rowDetailBackdrop"></div>
+<div class="pf-row-panel" id="rowDetailPanel">
+    <div class="pf-row-panel-header">
+        <div class="pf-row-panel-avatar" id="rowDetailAvatar">#</div>
+        <div>
+            <div class="pf-row-panel-title" id="rowDetailTitle">Row</div>
+            <div class="pf-row-panel-sub">{{ label }}</div>
+        </div>
+        <button type="button" class="pf-row-panel-close" id="rowDetailClose"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="pf-row-panel-body" id="rowDetailBody"></div>
+</div>
+
+<div class="modal fade" id="uploadModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:560px;">
+        <div class="modal-content" style="border:none; border-radius:14px; overflow:hidden;">
+            <div class="modal-header" style="border-bottom:1px solid var(--pf-border); padding:16px 20px;">
+                <h5 class="modal-title" style="font-weight:700; font-size:14.5px; color:#1a1f2e;">Upload {{ label }}</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body" style="padding:20px;">
+                <form id="uploadForm">
+                    <label class="pf-dropzone" id="dropZone">
+                        <div class="pf-dropzone-icon"><i class="fas fa-file-excel"></i></div>
+                        <div class="pf-dropzone-text">
+                            <div class="pf-dropzone-title"><span>Click to browse</span> or drag &amp; drop a file</div>
+                            <div class="pf-dropzone-hint">.xls, .xlsx or .xlsm &mdash; first sheet is used</div>
+                        </div>
+                        <input type="file" id="excelFile" accept=".xls,.xlsx,.xlsm">
+                    </label>
+
+                    <div class="pf-file-chip" id="fileChip">
+                        <div class="pf-file-chip-icon"><i class="fas fa-file-excel"></i></div>
+                        <div class="pf-file-chip-text">
+                            <div class="pf-file-chip-name" id="fileChipName">&nbsp;</div>
+                            <div class="pf-file-chip-size" id="fileChipSize">&nbsp;</div>
+                        </div>
+                        <button type="button" class="pf-file-chip-remove" id="fileChipRemove" title="Remove file"><i class="fas fa-times"></i></button>
+                    </div>
+
+                    <div class="pf-replace-row">
+                        <input type="checkbox" id="replaceCheck" checked>
+                        <label for="replaceCheck">Replace existing data in this table before importing</label>
+                    </div>
+
+                    <div style="margin-top:18px;">
+                        <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--pf-muted); font-weight:700; margin-bottom:8px;">Expected columns</div>
+                        {% for h in expected_headers %}
+                        <span class="pf-col-chip">{{ h }}</span>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-3 text-right">
+                        <button type="submit" class="pf-btn-primary" id="uploadBtn">
+                            <i class="fas fa-file-upload mr-1"></i> Upload &amp; Import
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="msgModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content" style="border:none; border-radius:14px; overflow:hidden;">
+            <div class="modal-body text-center" style="padding:32px 28px 20px;">
+                <div id="msgModalIconWrap" style="width:56px; height:56px; border-radius:50%;
+                            display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:24px;">
+                    <i id="msgModalIcon" class="fas"></i>
+                </div>
+                <h5 id="msgModalTitle" style="font-weight:700; color:#1a1f2e;"></h5>
+                <p id="msgModalBody" class="text-muted mb-0" style="font-size:13px;"></p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center" style="padding:8px 28px 26px;">
+                <button type="button" class="pf-btn-primary" data-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+    const UPLOAD_URL = "{{ url_for('dashboard.gad_masters_table_upload', table_name=table_name) }}";
+    const ROWS_URL = "{{ url_for('dashboard.gad_masters_table_rows', table_name=table_name) }}";
+    const DISTINCT_URL = "{{ url_for('dashboard.gad_masters_table_distinct', table_name=table_name) }}";
+    const PER_PAGE = 10;
+
+    const msgModalIconWrap = document.getElementById('msgModalIconWrap');
+    const msgModalIcon = document.getElementById('msgModalIcon');
+    const msgModalTitle = document.getElementById('msgModalTitle');
+    const msgModalBody = document.getElementById('msgModalBody');
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('excelFile');
+    const fileChip = document.getElementById('fileChip');
+    const fileChipName = document.getElementById('fileChipName');
+    const fileChipSize = document.getElementById('fileChipSize');
+    const fileChipRemove = document.getElementById('fileChipRemove');
+    const replaceCheck = document.getElementById('replaceCheck');
+    const uploadForm = document.getElementById('uploadForm');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const rowCount = document.getElementById('rowCount');
+
+    const dataTableWrap = document.getElementById('dataTableWrap');
+    const dataTableHead = document.getElementById('dataTableHead');
+    const dataTableBody = document.getElementById('dataTableBody');
+    const dataEmpty = document.getElementById('dataEmpty');
+    const pageInfo = document.getElementById('pageInfo');
+    const prevPageBtn = document.getElementById('prevPageBtn');
+    const nextPageBtn = document.getElementById('nextPageBtn');
+    const pageNumbers = document.getElementById('pageNumbers');
+
+    const rowDetailBackdrop = document.getElementById('rowDetailBackdrop');
+    const rowDetailPanel = document.getElementById('rowDetailPanel');
+    const rowDetailAvatar = document.getElementById('rowDetailAvatar');
+    const rowDetailTitle = document.getElementById('rowDetailTitle');
+    const rowDetailBody = document.getElementById('rowDetailBody');
+    const rowDetailClose = document.getElementById('rowDetailClose');
+
+    let currentPageColumns = [];
+    let currentPageRows = [];
+
+    const filterSummary = document.getElementById('filterSummary');
+    const filterSummaryText = document.getElementById('filterSummaryText');
+    const filterPanel = document.getElementById('filterPanel');
+    const filterPanelTitle = document.getElementById('filterPanelTitle');
+    const filterPanelList = document.getElementById('filterPanelList');
+    const filterSearchInput = document.getElementById('filterSearchInput');
+    const filterSelectAll = document.getElementById('filterSelectAll');
+    const filterPanelClose = document.getElementById('filterPanelClose');
+    const filterPanelClear = document.getElementById('filterPanelClear');
+    const filterPanelApply = document.getElementById('filterPanelApply');
+    const dataEmptyText = document.getElementById('dataEmptyText');
+
+    let currentPage = 1;
+    let totalPages = 1;
+    let activeFilters = {};
+    let filterPanelColumn = null;
+    let filterPanelAllValues = [];
+    let filterPanelSelected = new Set();
+
+    const ALERT_STYLES = {
+        success: { icon: 'fa-check-circle', color: '#12a454', bg: '#e6f6ee', title: 'Import complete' },
+        danger: { icon: 'fa-exclamation-triangle', color: '#e03131', bg: '#fdecec', title: 'Error' },
+        warning: { icon: 'fa-exclamation-circle', color: '#e8590c', bg: '#fff1e6', title: 'Warning' },
+    };
+
+    function showAlert(message, type) {
+        const cfg = ALERT_STYLES[type] || ALERT_STYLES.warning;
+        msgModalIconWrap.style.color = cfg.color;
+        msgModalIconWrap.style.background = cfg.bg;
+        msgModalIcon.className = 'fas ' + cfg.icon;
+        msgModalTitle.textContent = cfg.title;
+        msgModalBody.textContent = message;
+        $('#msgModal').modal('show');
+    }
+
+    function formatBytes(bytes) {
+        if (!bytes) return '0 KB';
+        const kb = bytes / 1024;
+        return kb < 1024 ? kb.toFixed(1) + ' KB' : (kb / 1024).toFixed(1) + ' MB';
+    }
+
+    function updateFileChip() {
+        if (fileInput.files.length) {
+            const f = fileInput.files[0];
+            fileChipName.textContent = f.name;
+            fileChipSize.textContent = formatBytes(f.size);
+            fileChip.classList.add('show');
+        } else {
+            fileChip.classList.remove('show');
+        }
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    fileInput.addEventListener('change', updateFileChip);
+
+    fileChipRemove.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        fileInput.value = '';
+        updateFileChip();
+    });
+
+    ['dragenter', 'dragover'].forEach(function (evt) {
+        dropZone.addEventListener(evt, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('dragover');
+        });
+    });
+    ['dragleave', 'dragend'].forEach(function (evt) {
+        dropZone.addEventListener(evt, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+        });
+    });
+    dropZone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            updateFileChip();
+        }
+    });
+
+    uploadForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        if (!fileInput.files.length) {
+            showAlert('Please choose an Excel file first.', 'warning');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('excel_file', fileInput.files[0]);
+        formData.append('replace', replaceCheck.checked ? '1' : '0');
+
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Importing...';
+
+        try {
+            const resp = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                showAlert(data.error || 'Import failed.', 'danger');
+                return;
+            }
+
+            rowCount.textContent = data.total;
+            fileInput.value = '';
+            updateFileChip();
+            $('#uploadModal').modal('hide');
+            showAlert('Imported ' + data.inserted + ' row(s). Table now has ' + data.total + ' row(s).', 'success');
+            loadPage(1);
+        } catch (err) {
+            showAlert('Import failed: ' + err, 'danger');
+        } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-file-upload mr-1"></i> Upload &amp; Import';
+        }
+    });
+
+    function buildFiltersParam() {
+        const active = {};
+        Object.keys(activeFilters).forEach(function (col) {
+            if (activeFilters[col] && activeFilters[col].length) active[col] = activeFilters[col];
+        });
+        return Object.keys(active).length ? '&filters=' + encodeURIComponent(JSON.stringify(active)) : '';
+    }
+
+    function updateFilterSummary() {
+        const count = Object.keys(activeFilters).filter(c => activeFilters[c] && activeFilters[c].length).length;
+        if (count) {
+            filterSummary.style.display = 'inline-flex';
+            filterSummaryText.textContent = count + ' filter' + (count === 1 ? '' : 's') + ' active';
+        } else {
+            filterSummary.style.display = 'none';
+        }
+    }
+
+    filterSummary.addEventListener('click', function () {
+        activeFilters = {};
+        updateFilterSummary();
+        loadPage(1);
+    });
+
+    async function loadPage(page) {
+        try {
+            const resp = await fetch(ROWS_URL + '?page=' + page + '&per_page=' + PER_PAGE + buildFiltersParam());
+            const data = await resp.json();
+            if (!resp.ok) {
+                showAlert(data.error || 'Failed to load table data.', 'danger');
+                return;
+            }
+            renderData(data);
+        } catch (err) {
+            showAlert('Failed to load table data: ' + err, 'danger');
+        }
+    }
+
+    function renderData(data) {
+        currentPage = data.page;
+        totalPages = data.pages;
+        rowCount.textContent = data.total;
+
+        dataTableHead.innerHTML = '<th style="width:34px;">#</th>' + data.columns.map(function (c) {
+            const isActive = activeFilters[c] && activeFilters[c].length;
+            return '<th><div class="pf-th-inner"><span>' + escapeHtml(c) + '</span>' +
+                '<button type="button" class="pf-filter-btn' + (isActive ? ' active' : '') + '" data-col="' + escapeHtml(c) + '" title="Filter">' +
+                '<i class="fas fa-filter"></i></button></div></th>';
+        }).join('');
+
+        currentPageColumns = data.columns;
+        currentPageRows = data.rows;
+        closeRowDetail();
+
+        if (!data.rows.length) {
+            dataTableWrap.style.display = 'none';
+            dataEmpty.style.display = 'block';
+            const hasFilters = Object.keys(activeFilters).some(c => activeFilters[c] && activeFilters[c].length);
+            dataEmptyText.textContent = hasFilters
+                ? 'No rows match the current filter(s).'
+                : 'No data yet — upload a workbook to populate this table.';
+        } else {
+            dataTableWrap.style.display = '';
+            dataEmpty.style.display = 'none';
+
+            const startSerial = (data.page - 1) * data.per_page + 1;
+            dataTableBody.innerHTML = data.rows.map(function (row, i) {
+                return '<tr data-row-index="' + i + '"><td>' + (startSerial + i) + '</td>' +
+                    data.columns.map(c => '<td>' + escapeHtml(row[c]) + '</td>').join('') + '</tr>';
+            }).join('');
+        }
+
+        const start = data.total === 0 ? 0 : (data.page - 1) * data.per_page + 1;
+        const end = Math.min(data.page * data.per_page, data.total);
+        pageInfo.textContent = data.total === 0
+            ? 'No rows'
+            : 'Showing ' + start + '–' + end + ' of ' + data.total + ' · page ' + data.page + ' of ' + data.pages;
+
+        prevPageBtn.disabled = data.page <= 1;
+        nextPageBtn.disabled = data.page >= data.pages;
+        renderPageNumbers(data.page, data.pages);
+    }
+
+    function pageNumbersList(current, total) {
+        const delta = 1;
+        const range = [];
+        for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) range.push(i);
+        if (current - delta > 2) range.unshift('...');
+        if (current + delta < total - 1) range.push('...');
+        range.unshift(1);
+        if (total > 1) range.push(total);
+        return range;
+    }
+
+    function renderPageNumbers(page, pages) {
+        pageNumbers.innerHTML = pageNumbersList(page, pages).map(function (n) {
+            if (n === '...') return '<span class="pf-page-num ellipsis">&hellip;</span>';
+            return '<button type="button" class="pf-page-num' + (n === page ? ' active' : '') + '" data-page="' + n + '">' + n + '</button>';
+        }).join('');
+    }
+
+    pageNumbers.addEventListener('click', function (e) {
+        const btn = e.target.closest('.pf-page-num:not(.ellipsis)');
+        if (!btn) return;
+        const p = parseInt(btn.dataset.page, 10);
+        if (p && p !== currentPage) loadPage(p);
+    });
+
+    prevPageBtn.addEventListener('click', function () {
+        if (currentPage > 1) loadPage(currentPage - 1);
+    });
+    nextPageBtn.addEventListener('click', function () {
+        if (currentPage < totalPages) loadPage(currentPage + 1);
+    });
+
+    // --- Excel-style column filter panel -----------------------------------
+
+    function closeFilterPanel() {
+        filterPanel.style.display = 'none';
+        filterPanelColumn = null;
+    }
+
+    function positionFilterPanel(btnEl) {
+        const rect = btnEl.getBoundingClientRect();
+        const panelWidth = 240;
+        let left = rect.left;
+        if (left + panelWidth > window.innerWidth - 12) left = window.innerWidth - panelWidth - 12;
+        if (left < 12) left = 12;
+        let top = rect.bottom + 6;
+        if (top + 300 > window.innerHeight) top = Math.max(12, rect.top - 306);
+        filterPanel.style.left = left + 'px';
+        filterPanel.style.top = top + 'px';
+    }
+
+    function renderFilterList(values) {
+        filterPanelList.innerHTML = values.length
+            ? values.map(function (v) {
+                const label = v === '' ? '(blank)' : v;
+                const checked = filterPanelSelected.has(v) ? 'checked' : '';
+                return '<label><input type="checkbox" value="' + escapeHtml(v) + '" ' + checked + '> ' + escapeHtml(label) + '</label>';
+            }).join('')
+            : '<div class="text-muted" style="font-size:11.5px; padding:8px 0;">No values.</div>';
+        filterSelectAll.checked = values.length > 0 && values.every(v => filterPanelSelected.has(v));
+    }
+
+    async function openFilterPanel(col, btnEl) {
+        filterPanelColumn = col;
+        filterPanelTitle.textContent = col;
+        filterSearchInput.value = '';
+        filterPanelList.innerHTML = '<div class="text-muted" style="font-size:11.5px; padding:8px 0;">Loading...</div>';
+        positionFilterPanel(btnEl);
+        filterPanel.style.display = 'block';
+
+        const otherFilters = {};
+        Object.keys(activeFilters).forEach(function (c) {
+            if (c !== col && activeFilters[c] && activeFilters[c].length) otherFilters[c] = activeFilters[c];
+        });
+        const filtersParam = Object.keys(otherFilters).length ? '&filters=' + encodeURIComponent(JSON.stringify(otherFilters)) : '';
+
+        try {
+            const resp = await fetch(DISTINCT_URL + '?column=' + encodeURIComponent(col) + filtersParam);
+            const data = await resp.json();
+            if (!resp.ok) {
+                filterPanelList.innerHTML = '<div class="text-danger" style="font-size:11.5px;">' + escapeHtml(data.error || 'Failed to load values.') + '</div>';
+                return;
+            }
+            filterPanelAllValues = data.values;
+            filterPanelSelected = (activeFilters[col] && activeFilters[col].length)
+                ? new Set(activeFilters[col])
+                : new Set(filterPanelAllValues);
+            renderFilterList(filterPanelAllValues);
+        } catch (err) {
+            filterPanelList.innerHTML = '<div class="text-danger" style="font-size:11.5px;">Failed to load values.</div>';
+        }
+    }
+
+    dataTableHead.addEventListener('click', function (e) {
+        const btn = e.target.closest('.pf-filter-btn');
+        if (!btn) return;
+        e.stopPropagation();
+        openFilterPanel(btn.dataset.col, btn);
+    });
+
+    filterSearchInput.addEventListener('input', function () {
+        const q = filterSearchInput.value.trim().toLowerCase();
+        const filtered = q ? filterPanelAllValues.filter(v => v.toLowerCase().includes(q)) : filterPanelAllValues;
+        renderFilterList(filtered);
+    });
+
+    filterPanelList.addEventListener('change', function (e) {
+        if (e.target.type !== 'checkbox') return;
+        const v = e.target.value;
+        if (e.target.checked) filterPanelSelected.add(v); else filterPanelSelected.delete(v);
+        const visible = Array.from(filterPanelList.querySelectorAll('input[type=checkbox]')).map(el => el.value);
+        filterSelectAll.checked = visible.length > 0 && visible.every(v => filterPanelSelected.has(v));
+    });
+
+    filterSelectAll.addEventListener('change', function () {
+        const checked = filterSelectAll.checked;
+        Array.from(filterPanelList.querySelectorAll('input[type=checkbox]')).forEach(function (cb) {
+            cb.checked = checked;
+            if (checked) filterPanelSelected.add(cb.value); else filterPanelSelected.delete(cb.value);
+        });
+    });
+
+    filterPanelClose.addEventListener('click', closeFilterPanel);
+
+    filterPanelClear.addEventListener('click', function () {
+        if (!filterPanelColumn) return;
+        delete activeFilters[filterPanelColumn];
+        closeFilterPanel();
+        updateFilterSummary();
+        loadPage(1);
+    });
+
+    filterPanelApply.addEventListener('click', function () {
+        if (!filterPanelColumn) return;
+        if (filterPanelSelected.size === 0) {
+            showAlert('Select at least one value, or use Clear filter.', 'warning');
+            return;
+        }
+        if (filterPanelSelected.size === filterPanelAllValues.length) {
+            delete activeFilters[filterPanelColumn];
+        } else {
+            activeFilters[filterPanelColumn] = Array.from(filterPanelSelected);
+        }
+        closeFilterPanel();
+        updateFilterSummary();
+        loadPage(1);
+    });
+
+    document.addEventListener('click', function (e) {
+        if (filterPanel.style.display === 'none') return;
+        if (filterPanel.contains(e.target)) return;
+        if (e.target.closest('.pf-filter-btn')) return;
+        closeFilterPanel();
+    });
+
+    // --- Row detail side panel ---------------------------------------------
+
+    function openRowDetail(index) {
+        const row = currentPageRows[index];
+        if (!row) return;
+
+        const serial = (currentPage - 1) * PER_PAGE + index + 1;
+        rowDetailAvatar.textContent = '#' + serial;
+        rowDetailTitle.textContent = 'Row ' + serial;
+
+        rowDetailBody.innerHTML = currentPageColumns.map(function (c) {
+            const val = row[c];
+            const isEmpty = val === '' || val == null;
+            return '<div class="pf-row-field">' +
+                '<div class="pf-row-field-label">' + escapeHtml(c) + '</div>' +
+                '<div class="pf-row-field-value' + (isEmpty ? ' empty' : '') + '">' + (isEmpty ? 'Not specified' : escapeHtml(val)) + '</div>' +
+                '</div>';
+        }).join('');
+
+        rowDetailBackdrop.classList.add('show');
+        rowDetailPanel.classList.add('show');
+    }
+
+    function closeRowDetail() {
+        rowDetailBackdrop.classList.remove('show');
+        rowDetailPanel.classList.remove('show');
+    }
+
+    dataTableBody.addEventListener('click', function (e) {
+        const tr = e.target.closest('tr');
+        if (!tr) return;
+        const index = parseInt(tr.dataset.rowIndex, 10);
+        if (Number.isNaN(index)) return;
+        openRowDetail(index);
+    });
+
+    rowDetailClose.addEventListener('click', closeRowDetail);
+    rowDetailBackdrop.addEventListener('click', closeRowDetail);
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeRowDetail();
+    });
+
+    loadPage(1);
+})();
+</script>
+{% endblock %}
