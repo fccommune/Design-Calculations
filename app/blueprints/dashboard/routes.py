@@ -37,6 +37,7 @@ from app.services.solidworks_automation import (
     GENERATION_TOTAL_STEPS,
 )
 from app.services import gad_progress
+from app.services.design_calc_report import build_24in_600_report
 
 
 def admin_required(view):
@@ -137,6 +138,7 @@ def settings():
             ("login_logo", "Login page logo"),
             ("sidebar_logo", "Sidebar logo"),
             ("favicon", "Favicon"),
+            ("report_logo", "Report logo"),
         ):
             uploaded = request.files.get(slot)
             if uploaded and uploaded.filename:
@@ -391,6 +393,43 @@ def globe_generate_server_close(token):
     directly here."""
     gad_progress.request_close(token)
     return jsonify({"ok": True})
+
+
+@dashboard_bp.route("/globe-calculation/body-bonnet-bolting")
+@login_required
+def body_bonnet_bolting():
+    return render_template("body_bonnet_bolting.html")
+
+
+@dashboard_bp.route("/globe-calculation/body-bonnet-bolting-draft")
+@login_required
+def body_bonnet_bolting_draft():
+    return render_template("body_bonnet_bolting_draft.html")
+
+
+@dashboard_bp.route("/globe-calculation/design-calc-24in-600")
+@login_required
+def design_calc_24in_600():
+    return render_template("design_calc_24in_600.html")
+
+
+@dashboard_bp.route("/globe-calculation/design-calc-24in-600/report", methods=["POST"])
+@login_required
+def design_calc_24in_600_report():
+    """Formats whatever the browser already computed (sent up as a flat
+    {field_id: value} dict) into a downloadable PDF - see
+    app.services.design_calc_report for why nothing is recalculated here."""
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Expected a JSON object of field values."}), 400
+
+    buffer = build_24in_600_report(payload)
+    return send_file(
+        buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="24in 600# Design Calculation Report.pdf",
+    )
 
 
 @dashboard_bp.route("/gad-masters")

@@ -10,3 +10,6 @@ Werkzeug==3.0.3
 # GAD Automation (Globe valve)
 openpyxl==3.1.5
 pywin32==312; sys_platform == "win32"
+
+# PDF report downloads (design calculation pages)
+reportlab==5.0.1

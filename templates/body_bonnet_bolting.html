@@ -1,0 +1,698 @@
+{% extends "base.html" %}
+{% block title %}Body Bonnet Bolting Calculation{% endblock %}
+
+{% block style %}
+<style>
+    :root{
+        --pf-primary:#4361ee;
+        --pf-accent:#7209b7;
+        --pf-border:#e5e8f0;
+        --pf-surface:#ffffff;
+        --pf-muted:#8a94a6;
+        --pf-bg-soft:#f7f8fc;
+    }
+
+    .pf-hero{ display:flex; align-items:center; gap:14px; }
+    .pf-hero-icon{
+        width:44px; height:44px; border-radius:12px; flex-shrink:0;
+        background:linear-gradient(135deg,var(--pf-primary),var(--pf-accent));
+        display:flex; align-items:center; justify-content:center;
+        box-shadow:0 6px 16px rgba(67,97,238,.28);
+    }
+    .pf-hero-icon i{ font-size:18px; color:#fff; }
+    .pf-hero h3{ margin:0; font-weight:700; font-size:20px; color:#1a1f2e; }
+    .pf-hero p{ margin:2px 0 0; }
+
+    .pf-card{
+        background:var(--pf-surface); border:1px solid var(--pf-border); border-radius:14px;
+        box-shadow:0 2px 10px rgba(20,30,60,.04); margin-bottom:20px; overflow:hidden;
+    }
+    .pf-card-header{ display:flex; align-items:center; gap:10px; padding:14px 20px; border-bottom:1px solid var(--pf-border); }
+    .pf-card-header h3{ margin:0; font-size:14.5px; font-weight:700; color:#1a1f2e; }
+    .pf-card-header .pf-sub{ font-size:11px; color:var(--pf-muted); margin-left:auto; }
+    .pf-card-body{ padding:18px 20px; }
+
+    .pf-subhead{ font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--pf-primary); margin:0 0 12px; }
+    .pf-subhead.pf-subhead-calc{ color:var(--pf-muted); }
+
+    .pf-label{ font-size:11px; font-weight:600; color:#3a4256; margin-bottom:4px; display:block; }
+    .pf-sym{ font-weight:400; color:var(--pf-muted); }
+
+    .pf-input{ background:#fff; font-size:12.5px; }
+    .pf-input:focus{ border-color:var(--pf-primary); box-shadow:0 0 0 .15rem rgba(67,97,238,.15); }
+    .pf-output{ background:var(--pf-bg-soft) !important; font-size:12.5px; font-weight:600; color:#1a1f2e; border-color:var(--pf-border); }
+    .pf-output.pf-highlight{ color:var(--pf-primary); font-weight:700; }
+
+    /* Same red/green used by the source workbook's conditional formatting
+       (font FFC00000 / FF00B050) for the adequacy checks it colors. */
+    .pf-pass{ color:#00B050 !important; font-weight:700 !important; }
+    .pf-fail{ color:#C00000 !important; font-weight:700 !important; }
+    input.pf-pass, input.pf-fail{ background:#fff !important; }
+
+    .input-group-text{ font-size:11px; background:#f0f2f8; color:var(--pf-muted); min-width:38px; justify-content:center; }
+
+    .pf-legend{ display:flex; align-items:center; gap:18px; font-size:11px; color:var(--pf-muted); }
+    .pf-legend span{ display:inline-flex; align-items:center; gap:6px; }
+    .pf-legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+    .pf-legend .i-input{ background:#fff; border:1px solid var(--pf-border); }
+    .pf-legend .i-output{ background:var(--pf-bg-soft); border:1px solid var(--pf-border); }
+
+    .pf-steps-inputs-box{ background:#eef1fe; border:1px solid #d7ddfb; border-radius:8px; padding:12px 16px 6px; margin-bottom:4px; }
+    .pf-steps-input-list{ list-style:none; margin:0; padding:0; columns:2; column-gap:24px; }
+    .pf-steps-input-list li{ font-size:12px; padding:3px 0; border-bottom:1px dotted #d7ddfb; break-inside:avoid; }
+    .pf-steps-input-list li b{ color:#1a1f2e; }
+
+    /* A raw input value quoted inside a step's substituted formula - kept
+       visually distinct from derived/intermediate numbers in the same line. */
+    .pf-step-input{ color:var(--pf-primary); font-weight:700; background:#eef1fe; border-radius:3px; padding:0 3px; }
+    .pf-steps-section{ font-size:12.5px; font-weight:700; color:#1a1f2e; margin:18px 0 8px; padding-bottom:4px; border-bottom:2px solid var(--pf-primary); }
+    .pf-steps-section:first-child{ margin-top:0; }
+    table.pf-steps-table{ width:100%; font-size:12px; margin-bottom:4px; }
+    table.pf-steps-table th{ background:#f0f2f8; font-size:10.5px; text-transform:uppercase; letter-spacing:.02em; color:var(--pf-muted); font-weight:700; padding:6px 8px; text-align:left; }
+    table.pf-steps-table td{ padding:6px 8px; border-bottom:1px solid var(--pf-border); vertical-align:top; }
+    table.pf-steps-table td.pf-steps-label{ font-weight:600; color:#1a1f2e; width:26%; }
+    table.pf-steps-table td.pf-steps-formula{ color:var(--pf-muted); font-family:'Courier New',monospace; font-size:11px; width:32%; }
+    table.pf-steps-table td.pf-steps-sub{ color:#3a4256; font-family:'Courier New',monospace; font-size:11px; width:26%; }
+    table.pf-steps-table td.pf-steps-result{ font-weight:700; color:var(--pf-primary); white-space:nowrap; }
+    table.pf-steps-table td.pf-steps-result.pf-pass{ color:#00B050 !important; }
+    table.pf-steps-table td.pf-steps-result.pf-fail{ color:#C00000 !important; }
+
+    @media print {
+        .main-sidebar, .main-header, .no-print { display:none !important; }
+        .content-wrapper{ margin-left:0 !important; }
+        .pf-card{ box-shadow:none; break-inside:avoid; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <div class="pf-hero">
+                <div class="pf-hero-icon"><i class="fas fa-calculator"></i></div>
+                <div>
+                    <h3>Body Bonnet Bolting Calculation</h3>
+                    <p class="text-muted mb-0">Globe Calculation &mdash; per ASME Sec VIII Div-1 / ASME B16.34</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-auto no-print">
+            <button type="button" class="btn btn-sm btn-primary mr-2" id="btnViewSteps" data-toggle="modal" data-target="#stepsModal">
+                <i class="fas fa-list-ol mr-1"></i> View Calculation
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+                <i class="fas fa-print mr-1"></i> Print / Save as PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+
+        <div class="pf-card">
+            <div class="pf-card-header">
+                <h3>Bonnet Identification &amp; Material</h3>
+                <span class="pf-sub pf-legend">
+                    <span><i class="i-input"></i> Input</span>
+                    <span><i class="i-output"></i> Calculated</span>
+                    <span style="color:#00B050;font-weight:700;">&#9679; Meets requirement</span>
+                    <span style="color:#C00000;font-weight:700;">&#9679; Below requirement</span>
+                </span>
+            </div>
+            <div class="pf-card-body">
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="bonnet_partcode">Bonnet Partcode</label>
+                        <input type="text" class="form-control form-control-sm pf-input" id="bonnet_partcode" value="1004001">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="valve_size">Valve Size, mm (in)</label>
+                        <input type="text" class="form-control form-control-sm pf-input" id="valve_size" value="25 (1)">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pressure_class">Pressure Class</label>
+                        <input type="number" step="any" class="form-control form-control-sm pf-input" id="pressure_class" value="600">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="matl_body_bonnet">Body-Bonnet Material for Bolting Calc.</label>
+                        <input type="text" class="form-control form-control-sm pf-input" id="matl_body_bonnet" value="CF8M">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="matl_bolt">Bolt Material</label>
+                        <input type="text" class="form-control form-control-sm pf-input" id="matl_bolt" value="B8M">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="matl_bonnet_flange">Bonnet Material for Flange Thick. Calc.</label>
+                        <input type="text" class="form-control form-control-sm pf-input" id="matl_bonnet_flange" value="LCB">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pf-card">
+            <div class="pf-card-header"><h3>Section 1 &mdash; Bolting Calculation (ASME Sec VIII Div-1)</h3></div>
+            <div class="pf-card-body">
+                <p class="pf-subhead">Inputs</p>
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="s1_P">Internal design pressure at -29 to 38&deg;C <span class="pf-sym">(P)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="s1_P" value="99.3"><div class="input-group-append"><span class="input-group-text">bar</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="s1_Sa">Allowable bolt stress at -29 to 38&deg;C <span class="pf-sym">(Sa)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="s1_Sa" value="1300"><div class="input-group-append"><span class="input-group-text">bar</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="s1_Gid">Body-gasket ID <span class="pf-sym">(Gid)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="s1_Gid" value="55.362"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="s1_God">Body-gasket OD <span class="pf-sym">(God)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="s1_God" value="68.062"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="s1_Gids">Seat-gasket ID <span class="pf-sym">(Gids)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="s1_Gids" value="41.3384"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="s1_Gods">Seat-gasket OD <span class="pf-sym">(Gods)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="s1_Gods" value="49.314"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="s1_m">Gasket factor <span class="pf-sym">(m)</span></label>
+                        <input type="number" step="any" class="form-control form-control-sm pf-input" id="s1_m" value="3">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="s1_y">Gasket factor <span class="pf-sym">(y)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="s1_y" value="690"><div class="input-group-append"><span class="input-group-text">bar</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="s1_A">Actuator Size <span class="pf-sym">(A)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="s1_A" value="30"><div class="input-group-append"><span class="input-group-text">in</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="s1_Hact">Max. possible Actuator Thrust <span class="pf-sym">(Hact)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="s1_Hact" value="7739.9028"><div class="input-group-append"><span class="input-group-text">N</span></div></div>
+                    </div>
+                </div>
+
+                <p class="pf-subhead pf-subhead-calc mt-3">Calculated</p>
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Body-gasket width <span class="pf-sym">(N)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_N" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Basic body-gasket seating width <span class="pf-sym">(bo)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_bo" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Effective body-gasket width <span class="pf-sym">(b)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_b" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Body-gasket load reaction dia. <span class="pf-sym">(G)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output pf-highlight" id="out_G" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Seat-gasket width <span class="pf-sym">(Ns)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Ns" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Basic seat-gasket seating width <span class="pf-sym">(bos)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_bos" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Effective seat-gasket width <span class="pf-sym">(bs)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_bs" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Seat-gasket load reaction dia. <span class="pf-sym">(Gs)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Gs" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Total hydrostatic end force <span class="pf-sym">(H)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_H" readonly><div class="input-group-append"><span class="input-group-text">N</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Total joint contact compressive load <span class="pf-sym">(Hp)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Hp" readonly><div class="input-group-append"><span class="input-group-text">N</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Min bolt load, operating <span class="pf-sym">(Wm1)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Wm1" readonly><div class="input-group-append"><span class="input-group-text">N</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Operating load <span class="pf-sym">(AA)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output pf-highlight" id="out_AA" readonly><div class="input-group-append"><span class="input-group-text">N</span></div></div></div>
+
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Body-gasket seating load, no int. pressure <span class="pf-sym">(Wm2)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Wm2" readonly><div class="input-group-append"><span class="input-group-text">N</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Seat-gasket seating load, no int. pressure <span class="pf-sym">(Wm2s)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Wm2s" readonly><div class="input-group-append"><span class="input-group-text">N</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Assembly load <span class="pf-sym">(BB)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output pf-highlight" id="out_BB" readonly><div class="input-group-append"><span class="input-group-text">N</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Max Load (AA or BB)</label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output pf-highlight" id="out_MaxLoad" readonly><div class="input-group-append"><span class="input-group-text">N</span></div></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pf-card">
+            <div class="pf-card-header"><h3>Drilling Details</h3></div>
+            <div class="pf-card-body">
+                <p class="pf-subhead">Inputs</p>
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="drill_D">Nominal bolt diameter <span class="pf-sym">(D)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="drill_D" value="0.625"><div class="input-group-append"><span class="input-group-text">in</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="drill_NB">Number of Bolts <span class="pf-sym">(NB)</span></label>
+                        <input type="number" step="1" class="form-control form-control-sm pf-input" id="drill_NB" value="4">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="drill_TPI">TPI</label>
+                        <input type="number" step="any" class="form-control form-control-sm pf-input" id="drill_TPI" value="11">
+                    </div>
+                </div>
+
+                <p class="pf-subhead pf-subhead-calc mt-3">Calculated</p>
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Min bolt area, operating <span class="pf-sym">(Am1)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Am1" readonly><div class="input-group-append"><span class="input-group-text">mm&sup2;</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Min bolt area, assembly <span class="pf-sym">(Am2)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Am2" readonly><div class="input-group-append"><span class="input-group-text">mm&sup2;</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Min bolt area, ASME B16.4 <span class="pf-sym">(Am3)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Am3" readonly><div class="input-group-append"><span class="input-group-text">mm&sup2;</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Required bolt area, Max <span class="pf-sym">(A)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output pf-highlight" id="out_Areq_mm2" readonly><div class="input-group-append"><span class="input-group-text">mm&sup2;</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Required bolt area <span class="pf-sym">(A)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Areq_in2" readonly><div class="input-group-append"><span class="input-group-text">in&sup2;</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Tensile stress area <span class="pf-sym">(At)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_At" readonly><div class="input-group-append"><span class="input-group-text">in&sup2;</span></div></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pf-card">
+            <div class="pf-card-header"><h3>Hydrostatic Test Load <span class="pf-sub">(calculated only, at 1.5&times; design pressure)</span></h3></div>
+            <div class="pf-card-body">
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Hydrostatic test pressure <span class="pf-sym">(Hy)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Hy" readonly><div class="input-group-append"><span class="input-group-text">bar</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Bolt stress at test pressure <span class="pf-sym">(Sh)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Sh" readonly><div class="input-group-append"><span class="input-group-text">bar</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Allowable bolt stress at test pressure <span class="pf-sym">(Sah)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_Sah" readonly><div class="input-group-append"><span class="input-group-text">bar</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Test result</label><input type="text" class="form-control form-control-sm pf-output pf-highlight" id="out_HydroCheck" readonly></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pf-card">
+            <div class="pf-card-header"><h3>Section 2 &mdash; PCD (Pitch Circle Diameter) Calculation</h3></div>
+            <div class="pf-card-body">
+                <p class="pf-subhead">Inputs</p>
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pcd_Ls">Bolt spacing <span class="pf-sym">(Ls)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="pcd_Ls" value="38.1"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pcd_bonnet_id_2wall">Bonnet ID + (2&times;Wall thickness)</label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="pcd_bonnet_id_2wall" value="57.15"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pcd_Rw">Radial spacing <span class="pf-sym">(Rw)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="pcd_Rw" value="23.8125"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pcd_gasket_housing_id">Body gasket housing inside dia. <span class="pf-sym">(Gid)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="pcd_gasket_housing_id" value="70.348"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pcd_Tg">Body gallery wall thickness <span class="pf-sym">(Tg)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="pcd_Tg" value="6.3"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pcd_yoke_od">Yoke Mounting OD</label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="pcd_yoke_od" value="69.9"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pcd_clearance">Clearance</label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="pcd_clearance" value="0.75"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pcd_socket_dia">Square drive socket Dia</label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="pcd_socket_dia" value="33"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pcd_drawing">PCD as in drawing</label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="pcd_drawing" value="104.775"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pcd_flange_od_drawing">Flange OD as in drawing</label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="pcd_flange_od_drawing" value="105.994"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="pcd_remarks">Remarks</label>
+                        <input type="text" class="form-control form-control-sm pf-input" id="pcd_remarks" value="Square flange, so it is accepted">
+                    </div>
+                </div>
+
+                <p class="pf-subhead pf-subhead-calc mt-3">Calculated</p>
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">PCD1 <span class="pf-sym">(P1)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_P1" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">PCD2 <span class="pf-sym">(P2)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_P2" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Dia. per B16.34, 6.1.3b</label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_B1634" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">PCD3 <span class="pf-sym">(P3)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_P3" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">PCD4 <span class="pf-sym">(P4)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_P4" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Max PCD (P1, P2, P3 or P4)</label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output pf-highlight" id="out_MaxPCD" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Calculated Flange OD</label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output pf-highlight" id="out_CalcFlangeOD" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Drawing PCD/Flange OD check</label><input type="text" class="form-control form-control-sm pf-output" id="out_PcdCheck" readonly></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pf-card">
+            <div class="pf-card-header"><h3>Section 3 &mdash; Bonnet Flange Thickness Calculation</h3></div>
+            <div class="pf-card-body">
+                <p class="pf-subhead">Inputs</p>
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="fl_Sab">Allowable Stress of Bonnet <span class="pf-sym">(Sab)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="fl_Sab" value="1280"><div class="input-group-append"><span class="input-group-text">bar</span></div></div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="fl_Qf">Casting Quality Factor <span class="pf-sym">(Qf)</span></label>
+                        <input type="number" step="any" class="form-control form-control-sm pf-input" id="fl_Qf" value="0.8">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="fl_Ca">Attachment factor <span class="pf-sym">(Ca)</span></label>
+                        <input type="number" step="any" class="form-control form-control-sm pf-input" id="fl_Ca" value="0.3">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="pf-label" for="fl_td">Thickness as in Drawing <span class="pf-sym">(td)</span></label>
+                        <div class="input-group input-group-sm"><input type="number" step="any" class="form-control pf-input" id="fl_td" value="25"><div class="input-group-append"><span class="input-group-text">mm</span></div></div>
+                    </div>
+                </div>
+
+                <p class="pf-subhead pf-subhead-calc mt-3">Calculated</p>
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Allowable Stress w/ Qf</label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_AllowQf" readonly><div class="input-group-append"><span class="input-group-text">bar</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Lever arm <span class="pf-sym">(hG)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_hG" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Flange thickness, operating <span class="pf-sym">(to)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_to" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Flange thickness, assembly <span class="pf-sym">(ta)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output" id="out_ta" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Max flange thickness <span class="pf-sym">(t)</span></label><div class="input-group input-group-sm"><input type="text" class="form-control pf-output pf-highlight" id="out_tmax" readonly><div class="input-group-append"><span class="input-group-text">mm</span></div></div></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="pf-label">Drawing thickness check</label><input type="text" class="form-control form-control-sm pf-output" id="out_ThickCheck" readonly></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<div class="modal fade" id="stepsModal" tabindex="-1" role="dialog" aria-labelledby="stepsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h5 class="modal-title" id="stepsModalLabel"><i class="fas fa-list-ol mr-2 text-primary"></i>Step-by-Step Calculation</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body" id="stepsModalBody"></div>
+            <div class="modal-footer py-2 no-print">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="fas fa-print mr-1"></i> Print</button>
+                <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+    function num(id) {
+        var el = document.getElementById(id);
+        if (!el) return NaN;
+        var v = parseFloat(el.value);
+        return isNaN(v) ? NaN : v;
+    }
+
+    function safeDiv(a, b) {
+        if (!isFinite(a) || !b) return 0;
+        var r = a / b;
+        return isFinite(r) ? r : 0;
+    }
+
+    function fmt(v, decimals) {
+        if (v === null || v === undefined || isNaN(v) || !isFinite(v)) return '-';
+        return Number(v).toFixed(decimals === undefined ? 3 : decimals);
+    }
+
+    function setOut(id, value, decimals) {
+        var el = document.getElementById(id);
+        if (el) el.value = fmt(value, decimals);
+    }
+
+    // Wraps a raw input value (as opposed to a derived/calculated one) so the
+    // step-by-step report can visually tell them apart inside a formula.
+    function hi(v, decimals) {
+        return '<span class="pf-step-input">' + fmt(v, decimals) + '</span>';
+    }
+
+    // Matches the source workbook's conditional formatting: green when the
+    // cell meets/exceeds the value it's checked against, red when it doesn't.
+    function setPassFail(id, ok) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.classList.remove('pf-pass', 'pf-fail');
+        if (ok === null) return;
+        el.classList.add(ok ? 'pf-pass' : 'pf-fail');
+    }
+
+    // Snapshot of every input/intermediate/result value from the last
+    // recalc() run, used by renderSteps() to build the step-by-step report.
+    var S = {};
+
+    function recalc() {
+        // Section 1 -------------------------------------------------
+        var P = num('s1_P'), Sa = num('s1_Sa');
+        var Gid = num('s1_Gid'), God = num('s1_God');
+        var Gids = num('s1_Gids'), Gods = num('s1_Gods');
+        var m = num('s1_m'), y = num('s1_y');
+        var Hact = num('s1_Hact');
+
+        var N = (God - Gid) * 0.5;
+        var bo = 0.5 * N;
+        var b = bo <= 6 ? bo : 2.5 * Math.sqrt(bo);
+        var G = God - (2 * b);
+
+        var Ns = (Gods - Gids) * 0.5;
+        var bos = Ns * 0.5;
+        var bs = bos <= 6 ? bos : 2.5 * Math.sqrt(bos);
+        var Gs = Gods - (2 * bs);
+
+        var H = (0.7854 * Math.pow(G, 2) * P) / 10;
+        var Hp = (2 * b * 3.14 * G * m * P) / 10;
+        var Wm1 = H + Hp;
+        var AA = Wm1 + Hact;
+
+        var Wm2 = (3.14 * y * b * G) / 10;
+        var Wm2s = (3.14 * y * bs * Gs) / 10;
+        var BB = Wm2 + Wm2s;
+
+        var MaxLoad = Math.max(AA, BB);
+
+        setOut('out_N', N); setOut('out_bo', bo); setOut('out_b', b); setOut('out_G', G);
+        setOut('out_Ns', Ns); setOut('out_bos', bos); setOut('out_bs', bs); setOut('out_Gs', Gs);
+        setOut('out_H', H, 1); setOut('out_Hp', Hp, 1); setOut('out_Wm1', Wm1, 1); setOut('out_AA', AA, 1);
+        setOut('out_Wm2', Wm2, 1); setOut('out_Wm2s', Wm2s, 1); setOut('out_BB', BB, 1); setOut('out_MaxLoad', MaxLoad, 1);
+
+        // Drilling details -------------------------------------------
+        var D = num('drill_D'), NB = num('drill_NB'), TPI = num('drill_TPI');
+        var Class = num('pressure_class');
+
+        var Am1 = safeDiv(AA, Sa * 0.1);
+        var Am2 = safeDiv(BB, Sa * 0.1);
+        var Am3 = safeDiv(Class * Math.pow(God, 2) * 0.7854, (Sa / 10) * 65.26);
+        var Areq_mm2 = Math.round(Math.max(Am1, Am2, Am3) * 1000) / 1000;
+        var Areq_in2 = Areq_mm2 / Math.pow(25.4, 2);
+        var At = isFinite(TPI) && TPI ? (NB * 0.7854 * Math.pow(D - (0.9743 * (1 / TPI)), 2)) : 0;
+
+        setOut('out_Am1', Am1); setOut('out_Am2', Am2); setOut('out_Am3', Am3);
+        setOut('out_Areq_mm2', Areq_mm2); setOut('out_Areq_in2', Areq_in2, 4); setOut('out_At', At, 4);
+        // Excel colors At (D58) green when At >= required bolt area in² (D57)
+        setPassFail('out_At', At > 0 && Areq_in2 > 0 ? At >= Areq_in2 : null);
+
+        // Hydrostatic test load ---------------------------------------
+        var Hy = P * 1.5;
+        var Sh = safeDiv((Hy * Math.pow(G, 2) * 0.7854) + (Hp * 10), At * Math.pow(25.4, 2));
+        var Sah = Sa * 1.5;
+
+        setOut('out_Hy', Hy, 2); setOut('out_Sh', Sh, 2); setOut('out_Sah', Sah, 2);
+        // Excel colors Sah (D63) green when Sah >= Sh (D62)
+        var hydroOk = Sh > 0 && Sah > 0 ? Sah >= Sh : null;
+        setPassFail('out_Sah', hydroOk);
+        var hydroEl = document.getElementById('out_HydroCheck');
+        if (hydroEl) {
+            if (hydroOk === null) { hydroEl.value = '-'; hydroEl.classList.remove('pf-pass', 'pf-fail'); }
+            else if (hydroOk) { hydroEl.value = 'OK (Sh ≤ Sah)'; hydroEl.classList.add('pf-pass'); hydroEl.classList.remove('pf-fail'); }
+            else { hydroEl.value = 'FAILS (Sh > Sah)'; hydroEl.classList.add('pf-fail'); hydroEl.classList.remove('pf-pass'); }
+        }
+
+        // Section 2 - PCD ----------------------------------------------
+        var Ls = num('pcd_Ls'), bonnetId2Wall = num('pcd_bonnet_id_2wall'), Rw = num('pcd_Rw');
+        var gasketHousingId = num('pcd_gasket_housing_id'), Tg = num('pcd_Tg');
+        var yokeOd = num('pcd_yoke_od'), clearance = num('pcd_clearance'), socketDia = num('pcd_socket_dia');
+        var pcdDrawing = num('pcd_drawing'), flangeOdDrawing = num('pcd_flange_od_drawing');
+
+        var P1 = safeDiv(NB * Ls, 3.14);
+        var P2 = bonnetId2Wall + (2 * Rw);
+        var B1634 = (2 / 3) * gasketHousingId;
+        var P3 = gasketHousingId + (0.5 * Tg) + (D * 25.4);
+        var P4 = yokeOd + (2 * clearance) + socketDia;
+        var MaxPCD = Math.max(P1, P2, P3, P4);
+        var CalcFlangeOD = MaxPCD + (2 * (D * 25.4));
+
+        setOut('out_P1', P1); setOut('out_P2', P2); setOut('out_B1634', B1634); setOut('out_P3', P3);
+        setOut('out_P4', P4); setOut('out_MaxPCD', MaxPCD); setOut('out_CalcFlangeOD', CalcFlangeOD);
+
+        // Excel colors "PCD as in drawing" (D80) green when it's >= Max PCD (D79),
+        // and "Flange OD as in drawing" (D82) green when it's >= Calculated Flange OD (D81)
+        var pcdOk = isFinite(pcdDrawing) && MaxPCD > 0 ? pcdDrawing >= MaxPCD : null;
+        var flangeOdOk = isFinite(flangeOdDrawing) && CalcFlangeOD > 0 ? flangeOdDrawing >= CalcFlangeOD : null;
+        setPassFail('pcd_drawing', pcdOk);
+        setPassFail('pcd_flange_od_drawing', flangeOdOk);
+
+        var pcdEl = document.getElementById('out_PcdCheck');
+        if (pcdEl) {
+            if (pcdOk === null || flangeOdOk === null) { pcdEl.value = '-'; pcdEl.classList.remove('pf-pass', 'pf-fail'); }
+            else if (pcdOk && flangeOdOk) { pcdEl.value = 'Drawing OK'; pcdEl.classList.add('pf-pass'); pcdEl.classList.remove('pf-fail'); }
+            else { pcdEl.value = 'Review drawing'; pcdEl.classList.add('pf-fail'); pcdEl.classList.remove('pf-pass'); }
+        }
+
+        // Section 3 - Bonnet flange thickness --------------------------
+        var Sab = num('fl_Sab'), Qf = num('fl_Qf'), Ca = num('fl_Ca'), td = num('fl_td');
+
+        var AllowQf = Sab * Qf;
+        var hG = (pcdDrawing - G) / 2;
+        var toInner = (Ca * P) / AllowQf + (1.9 * (AA * 10) * hG) / (AllowQf * Math.pow(G, 3));
+        var to = AllowQf && toInner >= 0 ? G * Math.sqrt(toInner) : 0;
+        var taInner = (1.9 * (BB * 10) * hG) / (AllowQf * Math.pow(G, 3));
+        var ta = AllowQf && taInner >= 0 ? G * Math.sqrt(taInner) : 0;
+        var tmax = Math.floor(Math.max(to, ta) * 10) / 10;
+
+        setOut('out_AllowQf', AllowQf); setOut('out_hG', hG); setOut('out_to', to); setOut('out_ta', ta); setOut('out_tmax', tmax, 1);
+
+        // Excel colors "Thickness as in Drawing" (D97) green when it's >= Max flange thickness (D96)
+        var thickOk = isFinite(td) && tmax > 0 ? td >= tmax : null;
+        setPassFail('fl_td', thickOk);
+        var thickEl = document.getElementById('out_ThickCheck');
+        if (thickEl) {
+            if (thickOk === null) { thickEl.value = '-'; thickEl.classList.remove('pf-pass', 'pf-fail'); }
+            else if (thickOk) { thickEl.value = 'OK (td ≥ t)'; thickEl.classList.add('pf-pass'); thickEl.classList.remove('pf-fail'); }
+            else { thickEl.value = 'FAILS (td < t)'; thickEl.classList.add('pf-fail'); thickEl.classList.remove('pf-pass'); }
+        }
+
+        // Snapshot everything for the step-by-step report -----------------
+        S = {
+            P: P, Sa: Sa, Gid: Gid, God: God, Gids: Gids, Gods: Gods, m: m, y: y, Hact: Hact,
+            N: N, bo: bo, b: b, G: G, Ns: Ns, bos: bos, bs: bs, Gs: Gs,
+            H: H, Hp: Hp, Wm1: Wm1, AA: AA, Wm2: Wm2, Wm2s: Wm2s, BB: BB, MaxLoad: MaxLoad,
+            D: D, NB: NB, TPI: TPI, Class: Class,
+            Am1: Am1, Am2: Am2, Am3: Am3, Areq_mm2: Areq_mm2, Areq_in2: Areq_in2, At: At, AtOk: At > 0 && Areq_in2 > 0 ? At >= Areq_in2 : null,
+            Hy: Hy, Sh: Sh, Sah: Sah, hydroOk: hydroOk,
+            Ls: Ls, bonnetId2Wall: bonnetId2Wall, Rw: Rw, gasketHousingId: gasketHousingId, Tg: Tg,
+            yokeOd: yokeOd, clearance: clearance, socketDia: socketDia, pcdDrawing: pcdDrawing, flangeOdDrawing: flangeOdDrawing,
+            P1: P1, P2: P2, B1634: B1634, P3: P3, P4: P4, MaxPCD: MaxPCD, CalcFlangeOD: CalcFlangeOD, pcdOk: pcdOk, flangeOdOk: flangeOdOk,
+            Sab: Sab, Qf: Qf, Ca: Ca, td: td, AllowQf: AllowQf, hG: hG, to: to, ta: ta, tmax: tmax, thickOk: thickOk
+        };
+    }
+
+    function txt(id) {
+        var el = document.getElementById(id);
+        return el ? (el.value || '—') : '—';
+    }
+
+    function okLabel(ok) {
+        if (ok === null) return '<span class="text-muted">–</span>';
+        return ok ? '<span class="pf-steps-result pf-pass">MEETS REQ.</span>' : '<span class="pf-steps-result pf-fail">BELOW REQ.</span>';
+    }
+
+    function row(label, symbol, formula, sub, result, unit, okClass) {
+        var cls = okClass ? (' ' + okClass) : '';
+        return '<tr><td class="pf-steps-label">' + label + (symbol ? ' <span class="pf-sym">(' + symbol + ')</span>' : '') + '</td>' +
+               '<td class="pf-steps-formula">' + formula + '</td>' +
+               '<td class="pf-steps-sub">' + sub + '</td>' +
+               '<td class="pf-steps-result' + cls + '">' + result + (unit ? ' ' + unit : '') + '</td></tr>';
+    }
+
+    function tableOpen() {
+        return '<table class="pf-steps-table"><thead><tr><th>Quantity</th><th>Formula</th><th>Substituted</th><th>Result</th></tr></thead><tbody>';
+    }
+
+    function renderSteps() {
+        recalc();
+        var f = fmt;
+        var h = '';
+
+        h += '<div class="pf-steps-section">Inputs Used</div>';
+        h += '<div class="pf-steps-inputs-box"><ul class="pf-steps-input-list">' +
+            '<li><b>Bonnet Partcode:</b> ' + txt('bonnet_partcode') + '</li>' +
+            '<li><b>Valve Size:</b> ' + txt('valve_size') + '</li>' +
+            '<li><b>Pressure Class:</b> ' + txt('pressure_class') + '</li>' +
+            '<li><b>Body-Bonnet Material:</b> ' + txt('matl_body_bonnet') + '</li>' +
+            '<li><b>Bolt Material:</b> ' + txt('matl_bolt') + '</li>' +
+            '<li><b>Bonnet Material (Flange):</b> ' + txt('matl_bonnet_flange') + '</li>' +
+            '<li><b>P</b> (design pressure): ' + f(S.P, 2) + ' bar</li>' +
+            '<li><b>Sa</b> (allowable bolt stress): ' + f(S.Sa, 0) + ' bar</li>' +
+            '<li><b>Gid / God</b> (body-gasket ID/OD): ' + f(S.Gid, 3) + ' / ' + f(S.God, 3) + ' mm</li>' +
+            '<li><b>Gids / Gods</b> (seat-gasket ID/OD): ' + f(S.Gids, 3) + ' / ' + f(S.Gods, 3) + ' mm</li>' +
+            '<li><b>m / y</b> (gasket factors): ' + f(S.m, 2) + ' / ' + f(S.y, 0) + ' bar</li>' +
+            '<li><b>Hact</b> (actuator thrust): ' + f(S.Hact, 1) + ' N</li>' +
+            '<li><b>D</b> (bolt dia.) / <b>NB</b> (count) / <b>TPI</b>: ' + f(S.D, 3) + ' in / ' + f(S.NB, 0) + ' / ' + f(S.TPI, 0) + '</li>' +
+            '<li><b>Ls</b> (bolt spacing): ' + f(S.Ls, 3) + ' mm</li>' +
+            '<li><b>PCD as in drawing:</b> ' + f(S.pcdDrawing, 3) + ' mm</li>' +
+            '<li><b>Flange OD as in drawing:</b> ' + f(S.flangeOdDrawing, 3) + ' mm</li>' +
+            '<li><b>Sab / Qf / Ca</b> (flange): ' + f(S.Sab, 0) + ' bar / ' + f(S.Qf, 2) + ' / ' + f(S.Ca, 2) + '</li>' +
+            '<li><b>td</b> (thickness as in drawing): ' + f(S.td, 2) + ' mm</li>' +
+            '</ul></div>';
+
+        h += '<div class="pf-steps-section">Section 1 &mdash; Bolting Calculation (ASME Sec VIII Div-1)</div>';
+        h += tableOpen();
+        h += row('Body-gasket width', 'N', '(God − Gid) × 0.5', '(' + hi(S.God) + ' − ' + hi(S.Gid) + ') × 0.5', f(S.N), 'mm');
+        h += row('Basic body-gasket seating width', 'bo', '0.5 × N', '0.5 × ' + f(S.N), f(S.bo), 'mm');
+        h += row('Effective body-gasket width', 'b', 'bo if bo≤6, else 2.5√bo', f(S.bo) + (S.bo <= 6 ? ' ≤ 6 → use bo' : ' > 6 → 2.5√' + f(S.bo)), f(S.b), 'mm');
+        h += row('Body-gasket load reaction dia.', 'G', 'God − 2b', hi(S.God) + ' − 2×' + f(S.b), f(S.G), 'mm');
+        h += row('Seat-gasket width', 'Ns', '(Gods − Gids) × 0.5', '(' + hi(S.Gods) + ' − ' + hi(S.Gids) + ') × 0.5', f(S.Ns), 'mm');
+        h += row('Basic seat-gasket seating width', 'bos', '0.5 × Ns', '0.5 × ' + f(S.Ns), f(S.bos), 'mm');
+        h += row('Effective seat-gasket width', 'bs', 'bos if bos≤6, else 2.5√bos', f(S.bos) + (S.bos <= 6 ? ' ≤ 6 → use bos' : ' > 6 → 2.5√' + f(S.bos)), f(S.bs), 'mm');
+        h += row('Seat-gasket load reaction dia.', 'Gs', 'Gods − 2bs', hi(S.Gods) + ' − 2×' + f(S.bs), f(S.Gs), 'mm');
+        h += row('Total hydrostatic end force', 'H', '0.7854 × G² × P / 10', '0.7854 × ' + f(S.G) + '² × ' + hi(S.P) + ' / 10', f(S.H, 1), 'N');
+        h += row('Total joint contact compressive load', 'Hp', '2b × 3.14 × G × m × P / 10', '2×' + f(S.b) + '×3.14×' + f(S.G) + '×' + hi(S.m) + '×' + hi(S.P) + '/10', f(S.Hp, 1), 'N');
+        h += row('Min bolt load, operating', 'Wm1', 'H + Hp', f(S.H, 1) + ' + ' + f(S.Hp, 1), f(S.Wm1, 1), 'N');
+        h += row('Operating load', 'AA', 'Wm1 + Hact', f(S.Wm1, 1) + ' + ' + hi(S.Hact, 1), f(S.AA, 1), 'N');
+        h += row('Body-gasket seating load', 'Wm2', '3.14 × y × b × G / 10', '3.14×' + hi(S.y) + '×' + f(S.b) + '×' + f(S.G) + '/10', f(S.Wm2, 1), 'N');
+        h += row('Seat-gasket seating load', 'Wm2s', '3.14 × y × bs × Gs / 10', '3.14×' + hi(S.y) + '×' + f(S.bs) + '×' + f(S.Gs) + '/10', f(S.Wm2s, 1), 'N');
+        h += row('Assembly load', 'BB', 'Wm2 + Wm2s', f(S.Wm2, 1) + ' + ' + f(S.Wm2s, 1), f(S.BB, 1), 'N');
+        h += row('Max Load', '', 'MAX(AA, BB)', 'MAX(' + f(S.AA, 1) + ', ' + f(S.BB, 1) + ')', f(S.MaxLoad, 1), 'N');
+        h += '</tbody></table>';
+
+        h += '<div class="pf-steps-section">Drilling Details</div>';
+        h += tableOpen();
+        h += row('Min bolt area, operating', 'Am1', 'AA / (Sa × 0.1)', f(S.AA, 1) + ' / (' + hi(S.Sa) + '×0.1)', f(S.Am1), 'mm²');
+        h += row('Min bolt area, assembly', 'Am2', 'BB / (Sa × 0.1)', f(S.BB, 1) + ' / (' + hi(S.Sa) + '×0.1)', f(S.Am2), 'mm²');
+        h += row('Min bolt area, ASME B16.4', 'Am3', '(Class×God²×0.7854) / ((Sa/10)×65.26)', '(' + hi(S.Class, 0) + '×' + hi(S.God) + '²×0.7854)/((' + hi(S.Sa) + '/10)×65.26)', f(S.Am3), 'mm²');
+        h += row('Required bolt area', 'A', 'ROUND(MAX(Am1,Am2,Am3),3)', 'MAX(' + f(S.Am1) + ', ' + f(S.Am2) + ', ' + f(S.Am3) + ')', f(S.Areq_mm2), 'mm²');
+        h += row('Required bolt area', 'A', 'A(mm²) / 25.4²', f(S.Areq_mm2) + ' / 645.16', f(S.Areq_in2, 4), 'in²');
+        h += row('Tensile stress area', 'At', 'NB×0.7854×(D−0.9743/TPI)²', hi(S.NB, 0) + '×0.7854×(' + hi(S.D) + '−0.9743/' + hi(S.TPI, 0) + ')²', f(S.At, 4), 'in²');
+        h += row('Bolt area adequacy', '', 'At ≥ Required bolt area (in²) ?', f(S.At, 4) + ' vs ' + f(S.Areq_in2, 4), okLabel(S.AtOk), '', S.AtOk === null ? '' : (S.AtOk ? 'pf-pass' : 'pf-fail'));
+        h += '</tbody></table>';
+
+        h += '<div class="pf-steps-section">Hydrostatic Test Load <span class="text-muted font-weight-normal">(at 1.5× design pressure)</span></div>';
+        h += tableOpen();
+        h += row('Hydrostatic test pressure', 'Hy', 'P × 1.5', hi(S.P) + ' × 1.5', f(S.Hy, 2), 'bar');
+        h += row('Bolt stress at test pressure', 'Sh', '((Hy×G²×0.7854)+(Hp×10)) / (At×645.16)', '((' + f(S.Hy, 2) + '×' + f(S.G) + '²×0.7854)+(' + f(S.Hp, 1) + '×10))/(' + f(S.At, 4) + '×645.16)', f(S.Sh, 2), 'bar');
+        h += row('Allowable bolt stress at test pressure', 'Sah', 'Sa × 1.5', hi(S.Sa) + ' × 1.5', f(S.Sah, 2), 'bar');
+        h += row('Hydrostatic test result', '', 'Sah ≥ Sh ?', f(S.Sah, 2) + ' vs ' + f(S.Sh, 2), okLabel(S.hydroOk), '', S.hydroOk === null ? '' : (S.hydroOk ? 'pf-pass' : 'pf-fail'));
+        h += '</tbody></table>';
+
+        h += '<div class="pf-steps-section">Section 2 &mdash; PCD (Pitch Circle Diameter) Calculation</div>';
+        h += tableOpen();
+        h += row('PCD1', 'P1', '(NB × Ls) / 3.14', '(' + hi(S.NB, 0) + '×' + hi(S.Ls) + ')/3.14', f(S.P1), 'mm');
+        h += row('PCD2', 'P2', '(Bonnet ID+2Tw) + 2×Rw', hi(S.bonnetId2Wall) + ' + 2×' + hi(S.Rw), f(S.P2), 'mm');
+        h += row('Dia. per B16.34, 6.1.3b', '', '(2/3) × Gasket housing ID', '(2/3) × ' + hi(S.gasketHousingId), f(S.B1634), 'mm');
+        h += row('PCD3', 'P3', 'Housing ID + 0.5×Tg + (D×25.4)', hi(S.gasketHousingId) + ' + 0.5×' + hi(S.Tg) + ' + (' + hi(S.D) + '×25.4)', f(S.P3), 'mm');
+        h += row('PCD4', 'P4', 'Yoke OD + 2×Clearance + Socket Dia', hi(S.yokeOd) + ' + 2×' + hi(S.clearance) + ' + ' + hi(S.socketDia), f(S.P4), 'mm');
+        h += row('Max PCD', '', 'MAX(P1,P2,P3,P4)', 'MAX(' + f(S.P1) + ', ' + f(S.P2) + ', ' + f(S.P3) + ', ' + f(S.P4) + ')', f(S.MaxPCD), 'mm');
+        h += row('Calculated Flange OD', '', 'Max PCD + 2×(D×25.4)', f(S.MaxPCD) + ' + 2×(' + hi(S.D) + '×25.4)', f(S.CalcFlangeOD), 'mm');
+        h += row('PCD-as-drawing adequacy', '', 'PCD drawing ≥ Max PCD ?', hi(S.pcdDrawing) + ' vs ' + f(S.MaxPCD), okLabel(S.pcdOk), '', S.pcdOk === null ? '' : (S.pcdOk ? 'pf-pass' : 'pf-fail'));
+        h += row('Flange-OD-as-drawing adequacy', '', 'Flange OD drawing ≥ Calc. Flange OD ?', hi(S.flangeOdDrawing) + ' vs ' + f(S.CalcFlangeOD), okLabel(S.flangeOdOk), '', S.flangeOdOk === null ? '' : (S.flangeOdOk ? 'pf-pass' : 'pf-fail'));
+        h += '</tbody></table>';
+        h += '<p class="text-muted small mb-0">Remarks: ' + txt('pcd_remarks') + '</p>';
+
+        h += '<div class="pf-steps-section">Section 3 &mdash; Bonnet Flange Thickness Calculation</div>';
+        h += tableOpen();
+        h += row('Allowable Stress w/ Qf', '', 'Sab × Qf', hi(S.Sab) + ' × ' + hi(S.Qf), f(S.AllowQf), 'bar');
+        h += row('Lever arm', 'hG', '(PCD drawing − G) / 2', '(' + hi(S.pcdDrawing) + ' − ' + f(S.G) + ') / 2', f(S.hG), 'mm');
+        h += row('Flange thickness, operating', 'to', 'G·sqrt[(Ca·P/AllowQf)+(1.9·(AA×10)·hG)/(AllowQf·G³)]', 'G=' + f(S.G) + ', Ca=' + hi(S.Ca) + ', P=' + hi(S.P) + ', AA=' + f(S.AA, 1), f(S.to), 'mm');
+        h += row('Flange thickness, assembly', 'ta', 'G·sqrt[(1.9·(BB×10)·hG)/(AllowQf·G³)]', 'G=' + f(S.G) + ', BB=' + f(S.BB, 1) + ', hG=' + f(S.hG), f(S.ta), 'mm');
+        h += row('Max flange thickness', 't', 'ROUNDDOWN(MAX(to,ta),1)', 'MAX(' + f(S.to) + ', ' + f(S.ta) + ')', f(S.tmax, 1), 'mm');
+        h += row('Drawing thickness adequacy', '', 'td ≥ t ?', hi(S.td, 2) + ' vs ' + f(S.tmax, 1), okLabel(S.thickOk), '', S.thickOk === null ? '' : (S.thickOk ? 'pf-pass' : 'pf-fail'));
+        h += '</tbody></table>';
+
+        document.getElementById('stepsModalBody').innerHTML = h;
+    }
+
+    document.querySelectorAll('.pf-input').forEach(function (el) {
+        el.addEventListener('input', recalc);
+    });
+    recalc();
+
+    var stepsModalEl = document.getElementById('stepsModal');
+    if (stepsModalEl && window.jQuery) {
+        jQuery(stepsModalEl).on('show.bs.modal', renderSteps);
+    } else if (stepsModalEl) {
+        document.getElementById('btnViewSteps').addEventListener('click', renderSteps);
+    }
+})();
+</script>
+{% endblock %}

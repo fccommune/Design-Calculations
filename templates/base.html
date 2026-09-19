@@ -126,6 +126,39 @@
                                 {% endfor %}
                             </ul>
                         </li>
+                        <li class="nav-item {{ 'menu-open' if request.path.startswith('/globe-calculation') else '' }}">
+                            <a href="#"
+                               class="nav-link {{ 'active' if request.path.startswith('/globe-calculation') else '' }}">
+                                <i class="nav-icon fas fa-calculator"></i>
+                                <p>
+                                    Globe Calculation
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="{{ url_for('dashboard.body_bonnet_bolting') }}"
+                                       class="nav-link {{ 'active' if request.path == url_for('dashboard.body_bonnet_bolting') else '' }}">
+                                        <i class="far fa-circle nav-icon" style="font-size:6px;"></i>
+                                        <p>Body Bonnet Bolting</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ url_for('dashboard.body_bonnet_bolting_draft') }}"
+                                       class="nav-link {{ 'active' if request.path == url_for('dashboard.body_bonnet_bolting_draft') else '' }}">
+                                        <i class="far fa-circle nav-icon" style="font-size:6px;"></i>
+                                        <p>Body Bonnet Bolting (Draft)</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ url_for('dashboard.design_calc_24in_600') }}"
+                                       class="nav-link {{ 'active' if request.path == url_for('dashboard.design_calc_24in_600') else '' }}">
+                                        <i class="far fa-circle nav-icon" style="font-size:6px;"></i>
+                                        <p>Globe Design Calculation</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
                         {% if current_user.role == 'admin' %}
                         <li class="nav-item">
                             <a href="{{ url_for('dashboard.users') }}"

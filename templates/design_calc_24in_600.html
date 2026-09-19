@@ -1,0 +1,729 @@
+{% extends "base.html" %}
+{% block title %}24in 600# Design Calculation{% endblock %}
+
+{% macro inp(id, label, symbol='', unit='', value='', step='any', type='number') %}
+<div class="xl-row">
+    <div class="xl-cell xl-label"><label for="{{id}}">{{label|safe}}</label></div>
+    <div class="xl-cell xl-symbol">{{symbol|safe}}</div>
+    <div class="xl-cell xl-value"><input type="{{type}}" {% if type=='number' %}step="{{step}}"{% endif %} class="pf-input xl-input" id="{{id}}" value="{{value}}"></div>
+    <div class="xl-cell xl-unit">{{unit|safe}}</div>
+</div>
+{% endmacro %}
+
+{% macro outp(id, label, symbol='', unit='', highlight=False) %}
+<div class="xl-row xl-row-calc">
+    <div class="xl-cell xl-label">{{label|safe}}</div>
+    <div class="xl-cell xl-symbol">{{symbol|safe}}</div>
+    <div class="xl-cell xl-value"><input type="text" class="pf-output xl-input{% if highlight %} pf-highlight{% endif %}" id="{{id}}" readonly></div>
+    <div class="xl-cell xl-unit">{{unit|safe}}</div>
+</div>
+{% endmacro %}
+
+{% macro figure(src, caption, maxw='420px') %}
+<div class="pf-figure">
+    <img src="{{ url_for('static', filename='images/design_calc/' + src) }}" alt="{{caption}}" loading="lazy" style="max-width:{{maxw}};">
+    <p class="pf-figure-caption">{{caption}}</p>
+</div>
+{% endmacro %}
+
+{% block style %}
+<style>
+    :root{
+        --pf-primary:#4361ee;
+        --pf-accent:#7209b7;
+        --pf-border:#e5e8f0;
+        --pf-surface:#ffffff;
+        --pf-muted:#8a94a6;
+        --pf-bg-soft:#f7f8fc;
+    }
+
+    .pf-hero{ display:flex; align-items:center; gap:14px; }
+    .pf-hero-icon{
+        width:44px; height:44px; border-radius:12px; flex-shrink:0;
+        background:linear-gradient(135deg,var(--pf-primary),var(--pf-accent));
+        display:flex; align-items:center; justify-content:center;
+        box-shadow:0 6px 16px rgba(67,97,238,.28);
+    }
+    .pf-hero-icon i{ font-size:18px; color:#fff; }
+    .pf-hero h3{ margin:0; font-weight:700; font-size:20px; color:#1a1f2e; }
+    .pf-hero p{ margin:2px 0 0; }
+
+    .pf-card{
+        background:var(--pf-surface); border:1px solid var(--pf-border); border-radius:14px;
+        box-shadow:0 2px 10px rgba(20,30,60,.04); margin-bottom:20px; overflow:hidden;
+    }
+    .pf-card-header{ display:flex; align-items:center; gap:10px; padding:14px 20px; border-bottom:1px solid var(--pf-border); }
+    .pf-card-header h3{ margin:0; font-size:14.5px; font-weight:700; color:#1a1f2e; }
+    .pf-card-header .pf-sub{ font-size:11px; color:var(--pf-muted); margin-left:auto; }
+    .pf-card-body{ padding:18px 20px; }
+
+    .pf-subhead{ font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--pf-primary); margin:0 0 10px; }
+    .pf-subhead.pf-subhead-calc{ color:var(--pf-muted); }
+
+    .pf-sym{ font-weight:400; color:var(--pf-muted); }
+
+    .pf-pass{ color:#00B050 !important; font-weight:700 !important; }
+    .pf-fail{ color:#C00000 !important; font-weight:700 !important; }
+    input.pf-pass, input.pf-fail{ background:#fff !important; }
+
+    .pf-legend{ display:flex; align-items:center; gap:18px; font-size:11px; color:var(--pf-muted); }
+    .pf-legend span{ display:inline-flex; align-items:center; gap:6px; }
+    .pf-legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+    .pf-legend .i-input{ background:#fff; border:1px solid var(--pf-border); }
+    .pf-legend .i-output{ background:var(--pf-bg-soft); border:1px solid var(--pf-border); }
+
+    .pf-bonnet-switch{ display:flex; align-items:center; gap:10px; }
+    .pf-bonnet-switch select{ width:auto; }
+
+    /* ---- Excel-style row/column layout: one field per row, like the
+       source spreadsheet's Label | Symbol | Value | Unit columns ---- */
+    .xl-table{
+        border:1px solid var(--pf-border); border-radius:8px; overflow:hidden;
+        margin-bottom:16px; background:#fff;
+    }
+    .xl-row{
+        display:flex; align-items:stretch; border-bottom:1px solid var(--pf-border);
+    }
+    .xl-row:last-child{ border-bottom:none; }
+    .xl-row:nth-child(odd){ background:#fbfcfe; }
+    .xl-row-calc{ background:var(--pf-bg-soft) !important; }
+    .xl-cell{ padding:7px 10px; font-size:12.5px; display:flex; align-items:center; }
+    .xl-label{ flex:1 1 auto; min-width:0; color:#3a4256; font-weight:600; }
+    .xl-label label{ margin:0; font-weight:600; cursor:pointer; }
+    .xl-symbol{
+        width:56px; flex:0 0 56px; color:var(--pf-muted); font-style:italic;
+        justify-content:center; border-left:1px solid var(--pf-border); text-align:center;
+    }
+    .xl-value{ width:150px; flex:0 0 150px; border-left:1px solid var(--pf-border); padding:4px 6px; }
+    .xl-unit{
+        width:56px; flex:0 0 56px; color:var(--pf-muted); font-size:11px;
+        justify-content:center; border-left:1px solid var(--pf-border); text-align:center;
+    }
+    .xl-input{
+        width:100%; border:1px solid transparent; background:transparent !important;
+        font-size:12.5px; padding:4px 6px; border-radius:5px; box-shadow:none !important;
+    }
+    input.xl-input.pf-input:focus{ border-color:var(--pf-primary); background:#fff !important; }
+    input.xl-input.pf-output{ font-weight:700; color:#1a1f2e; }
+    input.xl-input.pf-output.pf-highlight{ color:var(--pf-primary); }
+
+    @media (max-width: 640px){
+        .xl-row{ flex-wrap:wrap; }
+        .xl-label{ flex:0 0 100%; width:100%; padding-bottom:2px; }
+        .xl-symbol{ border-left:none; width:auto; flex:0 0 auto; padding-right:2px; }
+        .xl-value{ flex:1 1 auto; width:auto; border-left:none; }
+        .xl-unit{ border-left:none; width:auto; flex:0 0 auto; }
+    }
+
+    /* ---- Reference figures, pulled straight out of the source workbook ---- */
+    .pf-figure{
+        text-align:center; background:#fbfcfe; border:1px solid var(--pf-border);
+        border-radius:10px; padding:14px; margin:0 0 16px;
+    }
+    .pf-figure img{ max-width:100%; height:auto; }
+    .pf-figure-caption{ font-size:11px; color:var(--pf-muted); margin:8px 0 0; font-style:italic; }
+    .pf-figure-row{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
+    .pf-figure-row .pf-figure{ flex:1 1 200px; max-width:260px; }
+
+    @media print {
+        .main-sidebar, .main-header, .no-print { display:none !important; }
+        .content-wrapper{ margin-left:0 !important; }
+        .pf-card{ box-shadow:none; break-inside:avoid; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <div class="pf-hero">
+                <div class="pf-hero-icon"><i class="fas fa-drafting-compass"></i></div>
+                <div>
+                    <h3>Valve Design Calculation <span class="text-muted font-weight-normal">&mdash; 24in 600#</span></h3>
+                    <p class="text-muted mb-0">Globe Calculation &mdash; Body wall thickness (ASME B16.34), Bolting (ASME Sec VIII Div 1 App. 2), Bonnet design</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-auto no-print">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+                <i class="fas fa-print mr-1"></i> Print / Save as PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+
+        <div class="pf-card">
+            <div class="pf-card-header">
+                <h3>1&ndash;5. General Info, Valve Spec, Materials, Part Codes, PED</h3>
+                <span class="pf-sub pf-legend">
+                    <span><i class="i-input"></i> Input</span>
+                    <span><i class="i-output"></i> Calculated</span>
+                    <span style="color:#00B050;font-weight:700;">&#9679; Meets requirement</span>
+                    <span style="color:#C00000;font-weight:700;">&#9679; Below requirement</span>
+                </span>
+            </div>
+            <div class="pf-card-body">
+                <p class="pf-subhead">General Information</p>
+                <div class="xl-table">
+                    {{ inp('gi_work_order', 'Work Order', type='text', value='NA') }}
+                    {{ inp('gi_serial_no', 'Serial No', type='text', value='NA') }}
+                    {{ inp('gi_customer', 'Customer', type='text', value='NA') }}
+                    {{ inp('gi_prepared_by', 'Prepared by', type='text', value='NA') }}
+                    {{ inp('gi_checked_by', 'Checked by', type='text', value='NA') }}
+                </div>
+
+                <p class="pf-subhead">Valve Specification</p>
+                <div class="xl-table">
+                    {{ inp('vs_size', 'Valve Size', unit='in', value='24') }}
+                    {{ inp('vs_class', 'ASME Class', symbol='Pc', value='600') }}
+                    {{ inp('vs_pressure', 'Design Pressure @ 38&deg;C', symbol='P', unit='bar', value='102.1') }}
+                </div>
+
+                <p class="pf-subhead">Material Properties</p>
+                <div class="xl-table">
+                    {{ inp('mat_body_material', 'Body Material', type='text', value='ASTM A216 Gr. WCB') }}
+                    {{ inp('mat_body_stress', 'Body Allow. Stress @ 38&deg;C', unit='MPa', value='138') }}
+                    {{ inp('mat_bonnet_material', 'Bonnet Material', type='text', value='ASTM A216 Gr. WCB') }}
+                    {{ inp('mat_bonnet_stress', 'Bonnet Allow. Stress @ 38&deg;C', unit='MPa', value='138') }}
+                    {{ inp('mat_bolt_material', 'Stud/Bolt Material', type='text', value='ASTM A193 B7') }}
+                    {{ inp('mat_bolt_stress', 'Stud/Bolt Allow. Stress @ 38&deg;C', unit='MPa', value='172') }}
+                </div>
+
+                <p class="pf-subhead">Part Code Details</p>
+                <div class="xl-table">
+                    {{ inp('pc_body_mc', 'Body M/c', type='text', value='1002074') }}
+                    {{ inp('pc_body_casting', 'Body Casting', type='text', value='1001030') }}
+                    {{ inp('pc_bonnet_mc', 'Bonnet M/c', type='text', value='1003015') }}
+                    {{ inp('pc_bonnet_casting', 'Bonnet Casting', type='text', value='1004015') }}
+                </div>
+
+                <p class="pf-subhead">PED Details (if applicable)</p>
+                <div class="xl-table">
+                    {{ inp('ped_category', 'Category', type='text', value='III') }}
+                    {{ inp('ped_fluid_state', 'Fluid State', type='text', value='Gas') }}
+                    {{ inp('ped_fluid_group', 'Fluid Group', value='1') }}
+                </div>
+                {{ figure('fig1_ped_chart.png', 'Fig.1 - Table-6. Piping referred to in Article 4(1)(c)(i) of PED 2014/68/EU', maxw='380px') }}
+            </div>
+        </div>
+
+        <div class="pf-card">
+            <div class="pf-card-header"><h3>6. Body Design &mdash; Wall Thickness per ASME B16.34</h3></div>
+            <div class="pf-card-body">
+                {{ figure('fig2_body_cross_section.png', 'Fig.2 - Cross-section of Typical Globe Straight Body (d1 = Neck, d2 = Top Gallery, d3 = Bottom Gallery)', maxw='520px') }}
+
+                <p class="pf-subhead">6.1 Neck Region</p>
+                <div class="xl-table">
+                    {{ inp('wt_d1', 'Largest applicable dia', symbol='d1', unit='mm', value='590.55') }}
+                    {{ inp('wt_t1', 'Thickness (from ASME B16.34 Table 3A)', symbol='t1', unit='mm', value='42.67') }}
+                    {{ inp('wt_cr1', 'Corrosion Allowance', symbol='Cr', unit='mm', value='3') }}
+                    {{ outp('wt_T1', 'Required wall thickness', symbol='T1', unit='mm', highlight=True) }}
+                    {{ inp('wt_tp1', 'Provided wall thickness', symbol='tp1', unit='mm', value='50.04') }}
+                </div>
+
+                <p class="pf-subhead">6.2 Top Gallery</p>
+                <div class="xl-table">
+                    {{ inp('wt_d2', 'Largest applicable dia', symbol='d2', unit='mm', value='889') }}
+                    {{ outp('wt_d2p', "d2' (d2/1.5 if d2>1.5&times;d1, else d2)", symbol="d2'", unit='mm') }}
+                    {{ inp('wt_t2', "Thickness for d2 or d2' (from Table 3A)", symbol='t2', unit='mm', value='42.8') }}
+                    {{ inp('wt_cr2', 'Corrosion Allowance', symbol='Cr', unit='mm', value='3') }}
+                    {{ outp('wt_T2', 'Required wall thickness', symbol='T2', unit='mm', highlight=True) }}
+                    {{ inp('wt_tp2', 'Provided wall thickness', symbol='tp2', unit='mm', value='50.04') }}
+                </div>
+
+                <p class="pf-subhead">6.3 Bottom Gallery</p>
+                <div class="xl-table">
+                    {{ inp('wt_d3', 'Largest applicable dia', symbol='d3', unit='mm', value='929.89') }}
+                    {{ outp('wt_d3p', "d3' (d3/1.5 if d3>1.5&times;d1, else d3)", symbol="d3'", unit='mm') }}
+                    {{ inp('wt_t3', "Thickness for d3 or d3' (from Table 3A)", symbol='t3', unit='mm', value='44.6') }}
+                    {{ inp('wt_cr3', 'Corrosion Allowance', symbol='Cr', unit='mm', value='3') }}
+                    {{ outp('wt_T3', 'Required wall thickness', symbol='T3', unit='mm', highlight=True) }}
+                    {{ inp('wt_tp3', 'Provided wall thickness', symbol='tp3', unit='mm', value='50.04') }}
+                </div>
+            </div>
+        </div>
+
+        <div class="pf-card">
+            <div class="pf-card-header"><h3>7. Bolting Calculation (ASME Sec VIII Div 1, Mandatory Appendix 2)</h3></div>
+            <div class="pf-card-body">
+                {{ figure('fig3_gasket_location.png', 'Fig.3 - Location of Gasket Load Reaction Diameter', maxw='520px') }}
+
+                <p class="pf-subhead">Inputs</p>
+                <div class="xl-table">
+                    {{ inp('b_gasket_type', 'Gasket type', type='text', value='Spiral Wound') }}
+                    {{ inp('b_D1', 'Body-gasket ID', symbol='D1', unit='mm', value='619.4552') }}
+                    {{ inp('b_D2', 'Body-gasket OD', symbol='D2', unit='mm', value='651.2052') }}
+                    {{ inp('b_D3', 'Seat-gasket ID', symbol='D3', unit='mm', value='562.9402') }}
+                    {{ inp('b_D4', 'Seat-gasket OD', symbol='D4', unit='mm', value='588.3402') }}
+                    {{ inp('b_m', 'Gasket factor', symbol='m', value='3') }}
+                    {{ inp('b_y', 'Gasket factor', symbol='y', unit='bar', value='690') }}
+                    {{ inp('b_A', 'Actuator Size', symbol='A', value='220') }}
+                    {{ inp('b_Hact', 'Max. possible Actuator Thrust', symbol='Hact', unit='N', value='59230') }}
+                </div>
+
+                <p class="pf-subhead pf-subhead-calc">Calculated &mdash; Loads</p>
+                <div class="xl-table">
+                    {{ outp('b_N', 'Body-gasket width', symbol='N', unit='mm') }}
+                    {{ outp('b_bo', 'Basic body-gasket seating width', symbol='bo', unit='mm') }}
+                    {{ outp('b_b', 'Effective body-gasket width', symbol='b', unit='mm') }}
+                    {{ outp('b_G', 'Body-gasket load reaction dia.', symbol='G', unit='mm', highlight=True) }}
+                    {{ outp('b_Ns', 'Seat-gasket width', symbol='Ns', unit='mm') }}
+                    {{ outp('b_bos', 'Basic seat-gasket seating width', symbol='bos', unit='mm') }}
+                    {{ outp('b_bs', 'Effective seat-gasket width', symbol='bs', unit='mm') }}
+                    {{ outp('b_Gs', 'Seat-gasket load reaction dia.', symbol='Gs', unit='mm') }}
+                    {{ outp('b_H', 'Total hydrostatic end force', symbol='H', unit='N') }}
+                    {{ outp('b_Hp', 'Total joint contact compressive load', symbol='Hp', unit='N') }}
+                    {{ outp('b_Wm1', 'Min bolt load, operating', symbol='Wm1', unit='N') }}
+                    {{ outp('b_AA', 'Operating load', symbol='AA', unit='N', highlight=True) }}
+                    {{ outp('b_Wm2', 'Body-gasket seating load', symbol='Wm2', unit='N') }}
+                    {{ outp('b_Wm2s', 'Seat-gasket seating load', symbol='Wm2s', unit='N') }}
+                    {{ outp('b_BB', 'Assembly load', symbol='BB', unit='N', highlight=True) }}
+                    {{ outp('b_MaxLoad', 'Max Load (AA or BB)', unit='N', highlight=True) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="pf-card">
+            <div class="pf-card-header"><h3>Flange Drilling Details</h3></div>
+            <div class="pf-card-body">
+                <p class="pf-subhead">Inputs</p>
+                <div class="xl-table">
+                    {{ inp('dr_D', 'Nominal bolt diameter', symbol='D', unit='in', value='1.75') }}
+                    {{ inp('dr_NB', 'Number of Bolts', symbol='NB', value='24') }}
+                    {{ inp('dr_TPI', 'TPI', symbol='n', value='8') }}
+                </div>
+                <p class="pf-subhead pf-subhead-calc">Calculated</p>
+                <div class="xl-table">
+                    {{ outp('dr_Am1', 'Min bolt area, operating', symbol='Am1', unit='mm&sup2;') }}
+                    {{ outp('dr_Am2', 'Min bolt area, assembly', symbol='Am2', unit='mm&sup2;') }}
+                    {{ outp('dr_Am3', 'Min bolt area, ASME B16.4', symbol='Am3', unit='mm&sup2;') }}
+                    {{ outp('dr_Areq_mm2', 'Required bolt area, Max', symbol='A', unit='mm&sup2;', highlight=True) }}
+                    {{ outp('dr_Areq_in2', 'Required bolt area', symbol='A', unit='in&sup2;') }}
+                    {{ outp('dr_At', 'Tensile stress area', symbol='At', unit='in&sup2;') }}
+                </div>
+            </div>
+        </div>
+
+        <div class="pf-card">
+            <div class="pf-card-header"><h3>Hydrostatic Test Load <span class="pf-sub">(calculated only, at 1.5&times; design pressure)</span></h3></div>
+            <div class="pf-card-body">
+                <div class="xl-table">
+                    {{ outp('hy_Hy', 'Hydrostatic test pressure', symbol='Hy', unit='bar') }}
+                    {{ outp('hy_Sh', 'Bolt stress at test pressure', symbol='Sh', unit='bar') }}
+                    {{ outp('hy_Sah', 'Allow. bolt stress at test pressure', symbol='Sah', unit='bar') }}
+                    {{ outp('hy_check', 'Test result', highlight=True) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="pf-card">
+            <div class="pf-card-header"><h3>PCD (Pitch Circle Diameter) Calculation</h3></div>
+            <div class="pf-card-body">
+                <p class="pf-subhead">Inputs</p>
+                <div class="xl-table">
+                    {{ inp('pcd_Ls', 'Bolt spacing', symbol='Ls', unit='mm', value='95.25') }}
+                    {{ inp('pcd_Bid', 'Bonnet ID', symbol='Bid', unit='mm', value='541.02') }}
+                    {{ inp('pcd_tp4', 'Wall thickness', symbol='tp4', unit='mm', value='44') }}
+                    {{ inp('pcd_Rw', 'Radial spacing', symbol='Rw', unit='mm', value='58') }}
+                    {{ inp('pcd_Gid', 'Body gasket housing inside dia.', symbol='Gid', unit='mm', value='674.07') }}
+                    {{ inp('pcd_Tg', 'Body gallery wall thickness', symbol='Tg', unit='mm', value='33') }}
+                    {{ inp('pcd_Y', 'Yoke Mounting OD', symbol='Y', unit='mm', value='190.05') }}
+                    {{ inp('pcd_C1', 'Clearance', symbol='C1', unit='mm', value='1.5') }}
+                    {{ inp('pcd_Ds', 'Square drive socket Dia', symbol='Ds', unit='mm', value='63.3') }}
+                    {{ outp('pcd_P1', 'PCD1', symbol='P1', unit='mm') }}
+                    {{ outp('pcd_P2', 'PCD2', symbol='P2', unit='mm') }}
+                    {{ outp('pcd_dia1634', 'Dia. per B16.34, 6.1.3b', unit='mm') }}
+                    {{ outp('pcd_P3', 'PCD3', symbol='P3', unit='mm') }}
+                    {{ outp('pcd_P4', 'PCD4', symbol='P4', unit='mm') }}
+                    {{ outp('pcd_ReqPCD', 'Req. PCD (Max P1..P4)', highlight=True, unit='mm') }}
+                    {{ inp('pcd_PCD', 'Provided PCD', symbol='PCD', unit='mm', value='758.83') }}
+                    {{ outp('pcd_ReqFOD', 'Required Flange OD', highlight=True, unit='mm') }}
+                    {{ inp('pcd_FOD', 'Provided Flange OD', symbol='FOD', unit='mm', value='847.85') }}
+                </div>
+            </div>
+        </div>
+
+        <div class="pf-card">
+            <div class="pf-card-header">
+                <h3>8. Bonnet Design</h3>
+                <span class="pf-sub pf-bonnet-switch">
+                    Bonnet Type:
+                    <select id="bonnet_type" class="form-control form-control-sm pf-input" style="width:auto;">
+                        <option value="bell" selected>Bell Bonnet</option>
+                        <option value="flat">Flat Bonnet</option>
+                    </select>
+                </span>
+            </div>
+            <div class="pf-card-body">
+
+                <div id="section81" class="pf-bonnet-section">
+                    {{ figure('fig5_bell_bonnet.png', 'Fig.5 - Bell Bonnet', maxw='320px') }}
+                    <p class="pf-subhead">8.1 Bonnet Wall Thickness (UG-34) &mdash; applicable only to Bell Bonnet</p>
+                    <div class="xl-table">
+                        {{ inp('bw_d4', 'Diameter of the internal wet area', symbol='d4', unit='mm', value='541.02') }}
+                        {{ inp('bw_C', 'Attachment Factor (UG-34)', symbol='C', value='0.13') }}
+                        {{ outp('bw_Ppsi', 'Pressure Class', symbol='P', unit='psi') }}
+                        {{ inp('bw_S', 'Allowable Stress (YS&times;0.67)', symbol='S', unit='psi', value='20000') }}
+                        {{ inp('bw_E', 'Joint Efficiency', symbol='E', value='1') }}
+                        {{ outp('bw_treq', 'Required Min Bonnet Wall Thickness', symbol='t', unit='mm', highlight=True) }}
+                        {{ inp('bw_tp', 'Provided Bonnet Wall Thickness', symbol='t', unit='mm', value='66.1') }}
+                    </div>
+                    {{ figure('fig_d4t_diagram.png', 'd4 and t as used above', maxw='280px') }}
+                </div>
+
+                <div id="section82" class="pf-bonnet-section" style="display:none;">
+                    {{ figure('fig4_flat_bonnet.png', 'Fig.4 - Flat Bonnet', maxw='320px') }}
+                    <p class="pf-subhead">8.2 Flange Thickness &mdash; Flat Bonnet (ASME Sec VIII Div 1, UG-34)</p>
+                    <div class="xl-table">
+                        {{ inp('ff_Qf', 'Casting Quality Factor', symbol='Qf', value='0.8') }}
+                        {{ inp('ff_E', 'Joint Efficiency', symbol='E', value='1') }}
+                        {{ inp('ff_C', 'Attachment factor', symbol='C', value='0.3') }}
+                        {{ outp('ff_Sq', 'Allow. Stress of Bonnet w/ Qf', symbol='Sq', unit='MPa') }}
+                        {{ outp('ff_hG', 'Lever arm', symbol='hG', unit='mm') }}
+                        {{ outp('ff_to', 'Flange thickness (for AA)', symbol='to', unit='mm') }}
+                        {{ outp('ff_ta', 'Flange thickness (for BB)', symbol='ta', unit='mm') }}
+                        {{ outp('ff_treq', 'Required Flange Thick.', symbol='t', unit='mm', highlight=True) }}
+                        {{ inp('ff_td', 'Provided Flange Thickness', symbol='td', unit='mm', value='0') }}
+                    </div>
+                    {{ figure('fig6_attachment_factor.png', 'Fig.6 - Attachment factor for unstayed flat head (flat bonnet), C = 0.3', maxw='300px') }}
+                </div>
+
+                <div id="section83" class="pf-bonnet-section">
+                    <p class="pf-subhead">8.3 Flange Thickness &mdash; Bell Bonnet (ASME Sec VIII Div 1, Mandatory Appendix 2)</p>
+                    <p class="text-muted small">Iterative method: enter a trial flange thickness (Tf), check the stresses below are within the allowable, then set Provided Tp to that thickness (or the nearest practical plate size &ge; it).</p>
+                    <div class="xl-table">
+                        {{ inp('bf_Qf', 'Casting Quality Factor', symbol='Qf', value='0.8') }}
+                        {{ inp('bf_F', 'Factor F (from ASME Fig 2-7.2 chart)', symbol='F', value='0.90892') }}
+                        {{ inp('bf_f', 'Factor f (from ASME Fig 2-7.6 chart)', symbol='f', value='1') }}
+                        {{ inp('bf_V', 'Factor V (from ASME Fig 2-7.3 chart)', symbol='V', value='0.550103') }}
+                        {{ inp('bf_Tf', 'Trial / Required Bonnet Flange Thickness', symbol='Tf', unit='mm', value='140') }}
+                        {{ inp('bf_Tp', 'Provided Bonnet Flange Thickness', symbol='Tp', unit='mm', value='140') }}
+                    </div>
+                    <p class="pf-subhead pf-subhead-calc">Calculated</p>
+                    <div class="xl-table">
+                        {{ outp('bf_Sq', 'Allow. Stress of Bonnet w/ Qf', symbol='Sq', unit='MPa') }}
+                        {{ outp('bf_HD', 'Hydrostatic end force on inside of flange', symbol='HD', unit='N') }}
+                        {{ outp('bf_Ht', 'Hydrostatic end force (pressure on flange)', symbol='Ht', unit='N') }}
+                        {{ outp('bf_HG', 'Gasket load', symbol='HG', unit='N') }}
+                        {{ outp('bf_hG', 'Radial dist., gasket reaction to bolt circle', symbol='hG', unit='mm') }}
+                        {{ outp('bf_hD', 'Radial dist., bolt circle to HD circle', symbol='hD', unit='mm') }}
+                        {{ outp('bf_hT', 'Radial dist., bolt circle to HT circle', symbol='hT', unit='mm') }}
+                        {{ outp('bf_MG', 'Bending moment', symbol='MG', unit='N.mm') }}
+                        {{ outp('bf_MD', 'Bending moment', symbol='MD', unit='N.mm') }}
+                        {{ outp('bf_MT', 'Bending moment', symbol='MT', unit='N.mm') }}
+                        {{ outp('bf_M1', 'Bending moment', symbol='M1', unit='N.mm') }}
+                        {{ outp('bf_M2', 'Bending moment', symbol='M2', unit='N.mm') }}
+                        {{ outp('bf_Mo', 'Max Bending moment', symbol='Mo', unit='N.mm', highlight=True) }}
+                        {{ outp('bf_K', 'Factor K (FOD/Bid)', symbol='K') }}
+                        {{ outp('bf_ho', 'Factor ho', symbol='ho', unit='mm') }}
+                        {{ outp('bf_e', 'Factor e (F/ho)', symbol='e') }}
+                        {{ outp('bf_T', 'Factor T', symbol='T') }}
+                        {{ outp('bf_U', 'Factor U', symbol='U') }}
+                        {{ outp('bf_Q', 'Factor Q', symbol='Q') }}
+                        {{ outp('bf_Y', 'Factor Y', symbol='Y') }}
+                        {{ outp('bf_Z', 'Factor Z', symbol='Z') }}
+                        {{ outp('bf_dprime', "Factor d'", symbol="d'") }}
+                        {{ outp('bf_L', 'Factor L', symbol='L') }}
+                        {{ outp('bf_Sr', 'Radial stress', symbol='Sr', unit='MPa') }}
+                        {{ outp('bf_St', 'Tangential stress', symbol='St', unit='MPa') }}
+                        {{ outp('bf_Sh', 'Longitudinal stress', symbol='Sh', unit='MPa') }}
+                        {{ outp('bf_Srh', 'Combined stress', symbol='Srh', unit='MPa') }}
+                        {{ outp('bf_Sth', 'Combined stress', symbol='Sth', unit='MPa') }}
+                        {{ outp('bf_MaxStress', 'MAX(Sr, St, Srh, Sth)', highlight=True, unit='MPa') }}
+                        {{ outp('bf_ShAllow', 'Sh allowable (1.5&times;Sq)', unit='MPa') }}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="text-center no-print mb-4">
+            <button type="button" class="btn btn-primary" id="btnDownloadReport">
+                <i class="fas fa-file-pdf mr-1"></i> Download PDF Report
+            </button>
+            <div class="small text-muted mt-2" id="reportStatus"></div>
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+    function num(id) {
+        var el = document.getElementById(id);
+        if (!el) return NaN;
+        var v = parseFloat(el.value);
+        return isNaN(v) ? NaN : v;
+    }
+
+    function safeDiv(a, b) {
+        if (!isFinite(a) || !b) return 0;
+        var r = a / b;
+        return isFinite(r) ? r : 0;
+    }
+
+    function fmt(v, decimals) {
+        if (v === null || v === undefined || isNaN(v) || !isFinite(v)) return '-';
+        return Number(v).toFixed(decimals === undefined ? 3 : decimals);
+    }
+
+    function setOut(id, value, decimals) {
+        var el = document.getElementById(id);
+        if (el) el.value = fmt(value, decimals);
+    }
+
+    function setPassFail(id, ok) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.classList.remove('pf-pass', 'pf-fail');
+        if (ok === null) return;
+        el.classList.add(ok ? 'pf-pass' : 'pf-fail');
+    }
+
+    function recalc() {
+        // -------- Valve spec / materials --------
+        var P = num('vs_pressure'), Pc = num('vs_class');
+        var bodyStress = num('mat_body_stress'), bonnetStress = num('mat_bonnet_stress'), boltStress = num('mat_bolt_stress');
+
+        // -------- Section 6: Body wall thickness --------
+        var d1 = num('wt_d1'), t1 = num('wt_t1'), cr1 = num('wt_cr1'), tp1 = num('wt_tp1');
+        var T1 = t1 + cr1;
+        setOut('wt_T1', T1);
+        setPassFail('wt_tp1', isFinite(tp1) && T1 > 0 ? tp1 >= T1 : null);
+
+        var d2 = num('wt_d2'), t2 = num('wt_t2'), cr2 = num('wt_cr2'), tp2 = num('wt_tp2');
+        var d2p = (isFinite(d2) && isFinite(d1) && d2 > 1.5 * d1) ? d2 / 1.5 : d2;
+        var T2 = t2 + cr2;
+        setOut('wt_d2p', d2p);
+        setOut('wt_T2', T2);
+        setPassFail('wt_tp2', isFinite(tp2) && T2 > 0 ? tp2 >= T2 : null);
+
+        var d3 = num('wt_d3'), t3 = num('wt_t3'), cr3 = num('wt_cr3'), tp3 = num('wt_tp3');
+        var d3p = (isFinite(d3) && isFinite(d1) && d3 > 1.5 * d1) ? d3 / 1.5 : d3;
+        var T3 = t3 + cr3;
+        setOut('wt_d3p', d3p);
+        setOut('wt_T3', T3);
+        setPassFail('wt_tp3', isFinite(tp3) && T3 > 0 ? tp3 >= T3 : null);
+
+        // -------- Section 7: Bolting --------
+        var D1 = num('b_D1'), D2 = num('b_D2'), D3 = num('b_D3'), D4 = num('b_D4');
+        var m = num('b_m'), y = num('b_y'), Hact = num('b_Hact');
+
+        var N = (D2 - D1) * 0.5;
+        var bo = 0.5 * N;
+        var b = bo <= 6 ? bo : 2.5 * Math.sqrt(bo);
+        var G = D2 - (2 * b);
+
+        var Ns = (D4 - D3) * 0.5;
+        var bos = Ns * 0.5;
+        var bs = bos <= 6 ? bos : 2.5 * Math.sqrt(bos);
+        var Gs = D4 - (2 * bs);
+
+        var H = (0.7854 * Math.pow(G, 2) * P) / 10;
+        var Hp = (2 * b * 3.14 * G * m * P) / 10;
+        var Wm1 = H + Hp;
+        var AA = Wm1 + Hact;
+
+        var Wm2 = (3.14 * b * G * y) / 10;
+        var Wm2s = (3.14 * bs * Gs * y) / 10;
+        var BB = Wm2 + Wm2s;
+        var MaxLoad = Math.max(AA, BB);
+
+        setOut('b_N', N); setOut('b_bo', bo); setOut('b_b', b); setOut('b_G', G);
+        setOut('b_Ns', Ns); setOut('b_bos', bos); setOut('b_bs', bs); setOut('b_Gs', Gs);
+        setOut('b_H', H, 1); setOut('b_Hp', Hp, 1); setOut('b_Wm1', Wm1, 1); setOut('b_AA', AA, 1);
+        setOut('b_Wm2', Wm2, 1); setOut('b_Wm2s', Wm2s, 1); setOut('b_BB', BB, 1); setOut('b_MaxLoad', MaxLoad, 1);
+
+        // -------- Flange Drilling Details --------
+        var D = num('dr_D'), NB = num('dr_NB'), TPI = num('dr_TPI');
+
+        var Am1 = safeDiv(AA, boltStress);
+        var Am2 = safeDiv(BB, boltStress);
+        var Am3 = safeDiv(0.7854 * Math.pow(D2, 2) * Pc, boltStress * 65.26);
+        var Areq_mm2 = Math.round(Math.max(Am1, Am2, Am3) * 1000) / 1000;
+        var Areq_in2 = Areq_mm2 / Math.pow(25.4, 2);
+        var At = isFinite(TPI) && TPI ? (NB * 0.7854 * Math.pow(D - (0.9743 * (1 / TPI)), 2)) : 0;
+
+        setOut('dr_Am1', Am1); setOut('dr_Am2', Am2); setOut('dr_Am3', Am3);
+        setOut('dr_Areq_mm2', Areq_mm2); setOut('dr_Areq_in2', Areq_in2, 4); setOut('dr_At', At, 4);
+        setPassFail('dr_At', At > 0 && Areq_in2 > 0 ? At >= Areq_in2 : null);
+
+        // -------- Hydrostatic Test Load --------
+        var Hy = P * 1.5;
+        var Sh = safeDiv((0.7854 * Math.pow(G, 2) * Hy) + (Hp * 10), At * Math.pow(25.4, 2));
+        var Sah = 1.5 * boltStress * 10;
+
+        setOut('hy_Hy', Hy, 2); setOut('hy_Sh', Sh, 2); setOut('hy_Sah', Sah, 2);
+        var hydroOk = Sh > 0 && Sah > 0 ? Sah >= Sh : null;
+        var hydroEl = document.getElementById('hy_check');
+        if (hydroEl) {
+            hydroEl.classList.remove('pf-pass', 'pf-fail');
+            if (hydroOk === null) { hydroEl.value = '-'; }
+            else if (hydroOk) { hydroEl.value = 'OK (Sh ≤ Sah)'; hydroEl.classList.add('pf-pass'); }
+            else { hydroEl.value = 'FAILS (Sh > Sah)'; hydroEl.classList.add('pf-fail'); }
+        }
+
+        // -------- PCD calculation --------
+        var Ls = num('pcd_Ls'), Bid = num('pcd_Bid'), tp4 = num('pcd_tp4'), Rw = num('pcd_Rw');
+        var Gid = num('pcd_Gid'), Tg = num('pcd_Tg'), Y = num('pcd_Y'), C1 = num('pcd_C1'), Ds = num('pcd_Ds');
+        var PCDp = num('pcd_PCD'), FODp = num('pcd_FOD');
+
+        var P1 = safeDiv(NB * Ls, 3.14);
+        var P2 = Bid + (2 * tp4) + (2 * Rw);
+        var dia1634 = (2 / 3) * Gid;
+        var P3 = Gid + (0.5 * Tg) + (D * 25.4);
+        var P4 = Y + (2 * C1) + Ds;
+        var ReqPCD = Math.max(P1, P2, P3, P4);
+        var ReqFOD = ReqPCD + (2 * D * 25.4);
+
+        setOut('pcd_P1', P1); setOut('pcd_P2', P2); setOut('pcd_dia1634', dia1634);
+        setOut('pcd_P3', P3); setOut('pcd_P4', P4); setOut('pcd_ReqPCD', ReqPCD); setOut('pcd_ReqFOD', ReqFOD);
+        setPassFail('pcd_PCD', isFinite(PCDp) && ReqPCD > 0 ? PCDp >= ReqPCD : null);
+        setPassFail('pcd_FOD', isFinite(FODp) && ReqFOD > 0 ? FODp >= ReqFOD : null);
+
+        // -------- Section 8.1: Bonnet wall thickness (Bell) --------
+        var d4 = num('bw_d4'), C_ug34 = num('bw_C'), S_psi = num('bw_S'), E_ug34 = num('bw_E'), bw_tp = num('bw_tp');
+        var Ppsi = P * 14.5;
+        var bw_treq = (isFinite(d4) && S_psi && E_ug34) ? d4 * Math.sqrt((C_ug34 * Ppsi) / (S_psi * E_ug34)) : 0;
+        setOut('bw_Ppsi', Ppsi, 2);
+        setOut('bw_treq', bw_treq);
+        setPassFail('bw_tp', isFinite(bw_tp) && bw_treq > 0 ? bw_tp >= bw_treq : null);
+
+        // -------- Section 8.2: Flat bonnet flange thickness --------
+        var ff_Qf = num('ff_Qf'), ff_E = num('ff_E'), ff_C = num('ff_C'), ff_td = num('ff_td');
+        var ff_Sq = bonnetStress * ff_Qf;
+        var ff_hG = (PCDp - G) / 2;
+        var ff_denom = ff_Sq * ff_E;
+        var ff_toInner = ff_denom ? ((ff_C * P * 0.1) / ff_denom) + ((1.9 * AA * ff_hG) / (ff_denom * Math.pow(G, 3))) : NaN;
+        var ff_to = (ff_denom && ff_toInner >= 0) ? G * Math.sqrt(ff_toInner) : 0;
+        var ff_taInner = ff_denom ? (1.9 * BB * ff_hG) / (ff_denom * Math.pow(G, 3)) : NaN;
+        var ff_ta = (ff_denom && ff_taInner >= 0) ? G * Math.sqrt(ff_taInner) : 0;
+        var ff_treq = Math.floor(Math.max(ff_to, ff_ta) * 10) / 10;
+
+        setOut('ff_Sq', ff_Sq); setOut('ff_hG', ff_hG); setOut('ff_to', ff_to); setOut('ff_ta', ff_ta); setOut('ff_treq', ff_treq);
+        setPassFail('ff_td', isFinite(ff_td) && ff_treq > 0 ? ff_td >= ff_treq : null);
+
+        // -------- Section 8.3: Bell bonnet flange thickness (App. 2) --------
+        var bf_Qf = num('bf_Qf'), bf_F = num('bf_F'), bf_f = num('bf_f'), bf_V = num('bf_V');
+        var bf_Tf = num('bf_Tf'), bf_Tp = num('bf_Tp');
+
+        var bf_Sq = bonnetStress * bf_Qf;
+        var HD = 0.7854 * Math.pow(Bid, 2) * P * 0.1;
+        var Ht = H - HD;
+        var HG = Wm1 - H;
+        var bf_hG = (PCDp - G) / 2;
+        var bf_hD = (PCDp - Bid - tp4) / 2;
+        var bf_hT = (((PCDp - Bid) / 2) + bf_hG) / 2;
+        var MG = HG * bf_hG;
+        var MD = HD * bf_hD;
+        var MT = Ht * bf_hT;
+        var M1 = MG + MD + MT;
+        var M2 = BB * bf_hG;
+        var Mo = (Am1 > Am2) ? M1 : M2;
+
+        var K = safeDiv(FODp, Bid);
+        var ho = Math.sqrt(Bid * tp4);
+        var e = safeDiv(bf_F, ho);
+        var lnK = Math.log(K) / Math.LN10;
+        var T = ((Math.pow(K, 2) * (1 + 8.55246 * lnK)) - 1) / ((1.0472 + (1.9448 * Math.pow(K, 2))) * (K - 1));
+        var U = ((Math.pow(K, 2) * (1 + (8.55246 * lnK))) - 1) / (1.36136 * (Math.pow(K, 2) - 1) * (K - 1));
+        var Q = 0.66845 + (5.7169 * ((Math.pow(K, 2) * lnK) / (Math.pow(K, 2) - 1)));
+        var Yf = Q * safeDiv(1, K - 1);
+        var Z = (Math.pow(K, 2) + 1) / (Math.pow(K, 2) - 1);
+        var dprime = safeDiv(U, bf_V) * ho * Math.pow(tp4, 2);
+
+        var L = dprime ? (T ? ((1 + (bf_Tf * e)) / T) : 0) + (Math.pow(bf_Tf, 3) / dprime) : 0;
+        var Sr = (L && bf_Tf && Bid) ? (((1.33 * bf_Tf * e) + 1) * Mo) / (L * Math.pow(bf_Tf, 2) * Bid) : 0;
+        var St = (bf_Tf && Bid) ? ((Yf * Mo) / (Math.pow(bf_Tf, 2) * Bid)) - (Z * Sr) : 0;
+        var Sh = (L && tp4 && Bid) ? (bf_f * Mo) / (L * Math.pow(tp4, 2) * Bid) : 0;
+        var Srh = 0.5 * (Sh + Sr);
+        var Sth = 0.5 * (Sh + St);
+        var MaxStress = Math.max(Sr, St, Srh, Sth);
+        var ShAllow = 1.5 * bf_Sq;
+
+        setOut('bf_Sq', bf_Sq); setOut('bf_HD', HD, 1); setOut('bf_Ht', Ht, 1); setOut('bf_HG', HG, 1);
+        setOut('bf_hG', bf_hG); setOut('bf_hD', bf_hD); setOut('bf_hT', bf_hT);
+        setOut('bf_MG', MG, 1); setOut('bf_MD', MD, 1); setOut('bf_MT', MT, 1);
+        setOut('bf_M1', M1, 1); setOut('bf_M2', M2, 1); setOut('bf_Mo', Mo, 1);
+        setOut('bf_K', K, 4); setOut('bf_ho', ho); setOut('bf_e', e, 6);
+        setOut('bf_T', T, 4); setOut('bf_U', U, 4); setOut('bf_Q', Q, 4); setOut('bf_Y', Yf, 4); setOut('bf_Z', Z, 4);
+        setOut('bf_dprime', dprime, 1); setOut('bf_L', L, 4);
+        setOut('bf_Sr', Sr); setOut('bf_St', St); setOut('bf_Sh', Sh);
+        setOut('bf_Srh', Srh); setOut('bf_Sth', Sth);
+        setOut('bf_MaxStress', MaxStress); setOut('bf_ShAllow', ShAllow);
+
+        setPassFail('bf_MaxStress', bf_Sq > 0 ? MaxStress < bf_Sq : null);
+        setPassFail('bf_Sh', ShAllow > 0 ? Sh < ShAllow : null);
+        setPassFail('bf_Tp', isFinite(bf_Tp) && bf_Tf > 0 ? bf_Tp >= bf_Tf : null);
+    }
+
+    document.querySelectorAll('.pf-input').forEach(function (el) {
+        el.addEventListener('input', recalc);
+    });
+
+    var bonnetTypeEl = document.getElementById('bonnet_type');
+    function updateBonnetSections() {
+        var isBell = bonnetTypeEl.value === 'bell';
+        document.getElementById('section81').style.display = isBell ? '' : 'none';
+        document.getElementById('section83').style.display = isBell ? '' : 'none';
+        document.getElementById('section82').style.display = isBell ? 'none' : '';
+    }
+    if (bonnetTypeEl) {
+        bonnetTypeEl.addEventListener('change', updateBonnetSections);
+        updateBonnetSections();
+    }
+
+    recalc();
+
+    // --- PDF report download ------------------------------------------
+    var reportBtn = document.getElementById('btnDownloadReport');
+    var reportStatus = document.getElementById('reportStatus');
+    if (reportBtn) {
+        reportBtn.addEventListener('click', function () {
+            recalc();
+
+            var data = {};
+            document.querySelectorAll('section.content input[id], section.content select[id]').forEach(function (el) {
+                data[el.id] = el.value;
+            });
+
+            reportBtn.disabled = true;
+            reportStatus.textContent = 'Generating report...';
+
+            fetch('{{ url_for("dashboard.design_calc_24in_600_report") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            })
+                .then(function (resp) {
+                    if (!resp.ok) throw new Error('Server returned ' + resp.status);
+                    return resp.blob();
+                })
+                .then(function (blob) {
+                    var url = window.URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = '24in 600# Design Calculation Report.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    reportStatus.textContent = '';
+                })
+                .catch(function (err) {
+                    reportStatus.textContent = 'Could not generate the report: ' + err.message;
+                })
+                .finally(function () {
+                    reportBtn.disabled = false;
+                });
+        });
+    }
+})();
+</script>
+{% endblock %}

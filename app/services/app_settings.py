@@ -29,22 +29,41 @@ def get_or_create_settings() -> AppSetting:
     return settings
 
 
-def _asset_url(filename):
+def _asset_url(filename, default="images/logo.png"):
     if filename:
         return url_for("static", filename=f"{UPLOAD_SUBDIR}/{filename}")
-    return url_for("static", filename="images/logo.png")
+    return url_for("static", filename=default)
+
+
+# Shipped with the app - the FCC logo pulled from the original DP103207
+# workbook, used for the report header until someone uploads a "Report
+# logo" of their own in Settings.
+DEFAULT_REPORT_LOGO = "images/design_calc/fcc_logo.jpeg"
 
 
 def settings_context(settings: AppSetting) -> dict:
     """Plain dict of everything templates need - app_name plus resolved
-    image URLs, falling back to the built-in logo.png when nothing's been
-    uploaded for a slot."""
+    image URLs, falling back to the built-in logo.png (or, for the report
+    logo, the default FCC logo) when nothing's been uploaded for a slot."""
     return {
         "app_name": settings.app_name,
         "login_logo_url": _asset_url(settings.login_logo),
         "sidebar_logo_url": _asset_url(settings.sidebar_logo),
         "favicon_url": _asset_url(settings.favicon),
+        "report_logo_url": _asset_url(settings.report_logo, default=DEFAULT_REPORT_LOGO),
     }
+
+
+def get_report_logo_path() -> str:
+    """Absolute filesystem path to the logo PDF reports should use -
+    the uploaded "Report logo" if set, otherwise the default FCC logo.
+    (PDF generation needs a real file path, not a URL.)"""
+    settings = get_or_create_settings()
+    if settings.report_logo:
+        path = os.path.join(current_app.static_folder, *UPLOAD_SUBDIR.split("/"), settings.report_logo)
+        if os.path.exists(path):
+            return path
+    return os.path.join(current_app.static_folder, *DEFAULT_REPORT_LOGO.split("/"))
 
 
 def allowed_file(filename: str) -> bool:

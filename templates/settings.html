@@ -137,6 +137,17 @@
                             </label>
                         </div>
 
+                        <div class="pf-branding-item">
+                            <div class="pf-branding-label">Report logo</div>
+                            <div class="pf-branding-preview"><img src="{{ app_settings.report_logo_url }}" alt="Report logo"></div>
+                            <label class="pf-branding-dropzone">
+                                <i class="fas fa-upload"></i>
+                                <span id="reportLogoName">Choose image...</span>
+                                <input type="file" name="report_logo" accept=".png,.jpg,.jpeg,.svg,.gif,.webp,.ico" onchange="pfPreview(this, 'reportLogoName')">
+                            </label>
+                            <div class="pf-field-hint" style="margin-top:8px;">Used in the header of downloaded PDF calculation reports.</div>
+                        </div>
+
                     </div>
                 </div>
             </div>

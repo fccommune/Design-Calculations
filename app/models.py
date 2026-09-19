@@ -31,6 +31,7 @@ class AppSetting(db.Model):
     login_logo = db.Column(db.String(255))
     sidebar_logo = db.Column(db.String(255))
     favicon = db.Column(db.String(255))
+    report_logo = db.Column(db.String(255))
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
