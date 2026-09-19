@@ -37,7 +37,6 @@ from app.services.solidworks_automation import (
     GENERATION_TOTAL_STEPS,
 )
 from app.services import gad_progress
-from app.services.design_calc_report import build_24in_600_report
 
 
 def admin_required(view):
@@ -251,7 +250,11 @@ def globe_generate():
     try:
         resolved = resolve_globe_gad(row)
     except GadLookupError as exc:
-        return jsonify({"error": str(exc)}), 422
+        return jsonify({
+            "error": str(exc),
+            "error_table_name": exc.table_name,
+            "error_table_label": exc.table_label,
+        }), 422
 
     downloads_dir = os.path.join(current_app.static_folder, "downloads")
     exe_path = os.path.join(downloads_dir, "GadGenerate.exe")
@@ -312,7 +315,9 @@ def globe_generate_server():
         return jsonify({"error": "Butterfly valve (Series 20/21) generation isn't implemented yet - only Globe (10/11)."}), 400
 
     dwg_no = cell(row, "Dwg No") or "GA_Drawing"
-    download_name = f"{dwg_no}.pdf".replace("/", "-")
+    safe_dwg_no = dwg_no.replace("/", "-")
+    download_name = f"{safe_dwg_no}.pdf"
+    sldworks_download_name = f"{safe_dwg_no}.SLDDRW"
     token = gad_progress.start_job(GENERATION_TOTAL_STEPS)
     close_event = gad_progress.get_close_event(token)
 
@@ -327,12 +332,14 @@ def globe_generate_server():
                 def on_progress(step_text, step_index):
                     gad_progress.update(token, step_text, step_index)
 
-                def on_pdf_ready(pdf_path):
+                def on_pdf_ready(pdf_path, sldworks_path):
                     # Marks the job downloadable immediately - the thread
                     # keeps running after this to hold SolidWorks open until
                     # close_event is set (see /generate-server/<token>/close)
                     # or its own safety timeout elapses.
-                    gad_progress.finish(token, pdf_path, download_name)
+                    gad_progress.finish(
+                        token, pdf_path, download_name, sldworks_path, sldworks_download_name
+                    )
 
                 generate_globe_gad(
                     row,
@@ -342,7 +349,9 @@ def globe_generate_server():
                 )
             except SolidWorksNotInstalledError as exc:
                 gad_progress.fail(token, str(exc))
-            except (GadLookupError, GadGenerationError) as exc:
+            except GadLookupError as exc:
+                gad_progress.fail(token, str(exc), exc.table_name, exc.table_label)
+            except GadGenerationError as exc:
                 gad_progress.fail(token, str(exc))
             except Exception as exc:  # unexpected SolidWorks/COM failure
                 app_obj.logger.exception("GAD generation failed")
@@ -364,12 +373,18 @@ def globe_generate_server_progress(token):
         "total_steps": job["total_steps"],
         "done": job["done"],
         "error": job["error"],
+        "error_table_name": job["error_table_name"],
+        "error_table_label": job["error_table_label"],
+        "has_sldworks_file": bool(job["sldworks_path"]),
     })
 
 
 @dashboard_bp.route("/globe/generate-server/<token>/download")
 @login_required
 def globe_generate_server_download(token):
+    """The PDF alone - kept for anyone/anything wanting just that (e.g. a
+    quick look) without the SolidWorks file; globe.html itself uses
+    /download-zip below for the normal "click Generate" flow."""
     job = gad_progress.get_job(token)
     if job is None or not job["done"] or job["error"] or not job["pdf_path"]:
         abort(404)
@@ -378,6 +393,49 @@ def globe_generate_server_download(token):
         mimetype="application/pdf",
         as_attachment=True,
         download_name=job["download_name"],
+    )
+
+
+@dashboard_bp.route("/globe/generate-server/<token>/download-sldworks")
+@login_required
+def globe_generate_server_download_sldworks(token):
+    """The native SolidWorks drawing (.SLDDRW) alone - see /download above
+    for why this exists separately from /download-zip."""
+    job = gad_progress.get_job(token)
+    if job is None or not job["done"] or job["error"] or not job["sldworks_path"]:
+        abort(404)
+    return send_file(
+        job["sldworks_path"],
+        mimetype="application/octet-stream",
+        as_attachment=True,
+        download_name=job["sldworks_download_name"],
+    )
+
+
+@dashboard_bp.route("/globe/generate-server/<token>/download-zip")
+@login_required
+def globe_generate_server_download_zip(token):
+    """Both output files (PDF + native SolidWorks drawing) bundled into one
+    zip - what the browser actually downloads once "Generate on Server"
+    finishes, so the user gets one file instead of two separate downloads.
+    Built on demand from the same paths /download and /download-sldworks
+    use, not stored as its own file."""
+    job = gad_progress.get_job(token)
+    if job is None or not job["done"] or job["error"] or not job["pdf_path"] or not job["sldworks_path"]:
+        abort(404)
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.write(job["pdf_path"], job["download_name"])
+        zf.write(job["sldworks_path"], job["sldworks_download_name"])
+    buffer.seek(0)
+
+    zip_name = os.path.splitext(job["download_name"])[0] + ".zip"
+    return send_file(
+        buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=zip_name,
     )
 
 
@@ -423,6 +481,19 @@ def design_calc_24in_600_report():
     if not isinstance(payload, dict):
         return jsonify({"error": "Expected a JSON object of field values."}), 400
 
+    # Imported here rather than at module load time: reportlab (and its
+    # Pillow dependency) are only needed for this one PDF-export route, so
+    # a missing/broken install of either only breaks this endpoint instead
+    # of preventing the whole app from starting.
+    try:
+        from app.services.design_calc_report import build_24in_600_report
+    except ImportError as exc:
+        current_app.logger.exception("design_calc_report import failed")
+        return jsonify({
+            "error": f"PDF report generation isn't available on this server ({exc}). "
+                     "Install reportlab (and its Pillow dependency) to enable it."
+        }), 503
+
     buffer = build_24in_600_report(payload)
     return send_file(
         buffer,
@@ -437,10 +508,13 @@ def design_calc_24in_600_report():
 def gad_masters():
     # Fixed 2-column display order (fills column 1 top-to-bottom, then
     # column 2) rather than MODELS_BY_TABLE's natural order - matches how
-    # these 5 tables are grouped in the old WinForms app's tooling.
+    # these tables are grouped in the old WinForms app's tooling.
+    # ga_crosssec_globe deliberately isn't listed here - it's legacy/unused
+    # now that ga_sheet4_globe (labeled "Cross-Section" itself) replaced it;
+    # see TABLE_LABELS in gad_masters_import.py.
     display_order = [
         "ga_globe_table", "ga_dim_valve_globe", "ga_globe_hookup",
-        "ga_crosssec_globe", "ga_dim_act_globe",
+        "ga_sheet4_globe", "ga_dim_act_globe",
     ]
     tables = [
         {"name": name, "label": TABLE_LABELS[name], "count": MODELS_BY_TABLE[name].query.count()}

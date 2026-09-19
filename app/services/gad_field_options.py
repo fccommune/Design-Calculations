@@ -18,18 +18,23 @@ from app.models import (
     GAGlobeTable,
     GAGlobeHookUp,
     GACrossSecGlobe,
+    GASheet4Globe,
     GADimValveGlobe,
     GADimActGlobe,
 )
 
 FIELD_SOURCES = {
     "Series": [(GAGlobeTable, "valve_series"), (GADimValveGlobe, "series")],
-    "Body_Style": [(GAGlobeTable, "body_style"), (GACrossSecGlobe, "body_style"), (GADimValveGlobe, "body_style")],
+    "Body_Style": [(GAGlobeTable, "body_style"), (GACrossSecGlobe, "body_style"), (GASheet4Globe, "body_style"), (GADimValveGlobe, "body_style")],
+    # Valve_Size / Rating deliberately don't include GASheet4Globe - that
+    # table stores them as ranges (e.g. '1"-4"', '150-2500'), not a single
+    # value or comma list, so splitting on "," (below) would turn a whole
+    # range into one garbage "option" instead of real selectable values.
     "Valve_Size ": [(GAGlobeTable, "valve_size"), (GACrossSecGlobe, "size"), (GADimValveGlobe, "size")],
     "Rating": [(GAGlobeTable, "rating"), (GADimValveGlobe, "rating")],
-    "End _Connection": [(GAGlobeTable, "end_connection"), (GADimValveGlobe, "end_connection")],
-    "Bonnet _Type": [(GAGlobeTable, "bonnet_type"), (GACrossSecGlobe, "bonnet_type"), (GADimValveGlobe, "bonnet_type")],
-    "Flow_Direction": [(GAGlobeTable, "flow_direction"), (GACrossSecGlobe, "flow_direction")],
+    "End _Connection": [(GAGlobeTable, "end_connection"), (GASheet4Globe, "end_connection"), (GADimValveGlobe, "end_connection")],
+    "Bonnet _Type": [(GAGlobeTable, "bonnet_type"), (GACrossSecGlobe, "bonnet_type"), (GASheet4Globe, "bonnet_type"), (GADimValveGlobe, "bonnet_type")],
+    "Flow_Direction": [(GAGlobeTable, "flow_direction"), (GACrossSecGlobe, "flow_direction"), (GASheet4Globe, "flow_direction")],
     "Act Series": [(GAGlobeTable, "actuator_series")],
     "Act Type": [(GAGlobeTable, "actuator_type"), (GAGlobeHookUp, "actuator"), (GADimActGlobe, "actuator_type")],
     "Actuator Size": [(GAGlobeTable, "actuator_size"), (GADimActGlobe, "actuator_size")],
@@ -37,11 +42,11 @@ FIELD_SOURCES = {
     "H/W": [(GAGlobeTable, "hw"), (GADimActGlobe, "hand_wheel")],
     "End_Finish": [(GADimValveGlobe, "end_finish")],
     "Stem_Dia": [(GADimValveGlobe, "stem_dia")],
-    "Trim Type": [(GACrossSecGlobe, "trim_type")],
-    "Balancing": [(GACrossSecGlobe, "balancing")],
-    "Bal Seal Type": [(GACrossSecGlobe, "bal_seal_type")],
-    "Seat Type": [(GACrossSecGlobe, "seat_type")],
-    "Packing Type": [(GACrossSecGlobe, "packing_type")],
+    "Trim Type": [(GACrossSecGlobe, "trim_type"), (GASheet4Globe, "trim_type")],
+    "Balancing": [(GACrossSecGlobe, "balancing"), (GASheet4Globe, "balancing")],
+    "Bal Seal Type": [(GACrossSecGlobe, "bal_seal_type"), (GASheet4Globe, "bal_seal_type")],
+    "Seat Type": [(GACrossSecGlobe, "seat_type"), (GASheet4Globe, "seat_type")],
+    "Packing Type": [(GACrossSecGlobe, "packing_type"), (GASheet4Globe, "packing_type")],
     "Spring": [(GAGlobeHookUp, "spring")],
     "AirFailaction": [(GAGlobeHookUp, "air_fail_action")],
     "Positioner": [(GAGlobeHookUp, "positioner")],

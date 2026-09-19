@@ -56,8 +56,12 @@ def start_job(total_steps: int) -> str:
             "total_steps": total_steps,
             "done": False,
             "error": None,
+            "error_table_name": None,
+            "error_table_label": None,
             "pdf_path": None,
             "download_name": None,
+            "sldworks_path": None,
+            "sldworks_download_name": None,
             "created_at": time.time(),
             "close_event": threading.Event(),
         }
@@ -93,7 +97,13 @@ def update(token: str, step: str, step_index: int):
             job["step_index"] = step_index
 
 
-def finish(token: str, pdf_path: str, download_name: str):
+def finish(
+    token: str,
+    pdf_path: str,
+    download_name: str,
+    sldworks_path: str = None,
+    sldworks_download_name: str = None,
+):
     with _lock:
         job = _jobs.get(token)
         if job is not None:
@@ -102,14 +112,22 @@ def finish(token: str, pdf_path: str, download_name: str):
             job["step_index"] = job["total_steps"]
             job["pdf_path"] = pdf_path
             job["download_name"] = download_name
+            job["sldworks_path"] = sldworks_path
+            job["sldworks_download_name"] = sldworks_download_name
 
 
-def fail(token: str, error: str):
+def fail(token: str, error: str, table_name: str = None, table_label: str = None):
+    """table_name/table_label, when the failure was a GadLookupError, name
+    the specific GAD Masters table that's missing a matching row - see that
+    exception's docstring - so the browser can link straight to it instead
+    of leaving the user to guess which of the 6 master tables to check."""
     with _lock:
         job = _jobs.get(token)
         if job is not None:
             job["done"] = True
             job["error"] = error
+            job["error_table_name"] = table_name
+            job["error_table_label"] = table_label
 
 
 def get_job(token: str):

@@ -279,6 +279,10 @@
                 </div>
                 <h5 id="msgModalTitle" style="font-weight:700; color:#1a1f2e;"></h5>
                 <p id="msgModalBody" class="text-muted mb-0" style="font-size:13px;"></p>
+                <a id="msgModalTableLink" href="#" style="display:none; margin-top:12px; font-size:12.5px; font-weight:700;
+                            color:#e03131; background:#fdecec; border-radius:8px; padding:8px 14px;">
+                    <i class="fas fa-table mr-1"></i> Open <span id="msgModalTableLinkLabel"></span> master table
+                </a>
             </div>
             <div class="modal-footer border-0 justify-content-center" style="padding:8px 28px 26px;">
                 <button type="button" class="pf-btn-primary" data-dismiss="modal">OK</button>
@@ -336,8 +340,9 @@
     // Flask needs a real token to build these, so build them once with a
     // placeholder and swap it in at request time.
     const GENERATE_SERVER_PROGRESS_TMPL = "{{ url_for('dashboard.globe_generate_server_progress', token='__TOKEN__') }}";
-    const GENERATE_SERVER_DOWNLOAD_TMPL = "{{ url_for('dashboard.globe_generate_server_download', token='__TOKEN__') }}";
+    const GENERATE_SERVER_DOWNLOAD_ZIP_TMPL = "{{ url_for('dashboard.globe_generate_server_download_zip', token='__TOKEN__') }}";
     const GENERATE_SERVER_CLOSE_TMPL = "{{ url_for('dashboard.globe_generate_server_close', token='__TOKEN__') }}";
+    const GAD_MASTERS_TABLE_TMPL = "{{ url_for('dashboard.gad_masters_table', table_name='__TABLE__') }}";
 
     // Mirrors app/services/solidworks_automation.py's GENERATION_STEPS -
     // keep these two lists in sync if that pipeline ever changes.
@@ -410,13 +415,27 @@
         info: { icon: 'fa-info-circle', color: '#4361ee', bg: '#eef1fe', title: 'Notice' },
     };
 
-    function showAlert(message, type) {
+    const msgModalTableLink = document.getElementById('msgModalTableLink');
+    const msgModalTableLinkLabel = document.getElementById('msgModalTableLinkLabel');
+
+    // tableName/tableLabel: when the error came from a GadLookupError (see
+    // gad_globe_lookup.py), these name the specific GAD Masters table
+    // that's missing a matching row - shows a direct link to it instead of
+    // leaving the user to guess which of the 6 master tables to check.
+    function showAlert(message, type, tableName, tableLabel) {
         const cfg = ALERT_STYLES[type] || ALERT_STYLES.info;
         msgModalIconWrap.style.color = cfg.color;
         msgModalIconWrap.style.background = cfg.bg;
         msgModalIcon.className = 'fas ' + cfg.icon;
         msgModalTitle.textContent = cfg.title;
         msgModalBody.textContent = message;
+        if (tableName) {
+            msgModalTableLinkLabel.textContent = tableLabel || tableName;
+            msgModalTableLink.href = GAD_MASTERS_TABLE_TMPL.replace('__TABLE__', tableName);
+            msgModalTableLink.style.display = 'inline-block';
+        } else {
+            msgModalTableLink.style.display = 'none';
+        }
         $('#msgModal').modal('show');
     }
     function hideAlert() {
@@ -731,7 +750,7 @@
 
             if (!resp.ok) {
                 const data = await resp.json().catch(() => ({}));
-                showAlert(data.error || 'Could not prepare the GAD package.', 'danger');
+                showAlert(data.error || 'Could not prepare the GAD package.', 'danger', data.error_table_name, data.error_table_label);
                 return;
             }
 
@@ -845,7 +864,7 @@
                 progressIcon.style.background = 'linear-gradient(135deg,#e03131,#c92a2a)';
                 await sleep(600);
                 $('#progressModal').modal('hide');
-                showAlert(job.error, 'danger');
+                showAlert(job.error, 'danger', job.error_table_name, job.error_table_label);
                 return;
             }
 
@@ -855,7 +874,7 @@
             $('#progressModal').modal('hide');
             progressIcon.style.background = '';
 
-            const downloadUrl = GENERATE_SERVER_DOWNLOAD_TMPL.replace('__TOKEN__', token);
+            const downloadUrl = GENERATE_SERVER_DOWNLOAD_ZIP_TMPL.replace('__TOKEN__', token);
             const a = document.createElement('a');
             a.href = downloadUrl;
             document.body.appendChild(a);
@@ -866,7 +885,7 @@
             // the user dismisses this alert - only then is SolidWorks told
             // to close (discarding the unsaved drawing, no prompt).
             pendingSolidWorksCloseToken = token;
-            showAlert('PDF generated successfully.', 'success');
+            showAlert('PDF and SolidWorks drawing generated successfully - downloaded as one zip file.', 'success');
         } catch (err) {
             $('#progressModal').modal('hide');
             showAlert('GAD generation failed: ' + err, 'danger');

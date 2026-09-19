@@ -120,6 +120,33 @@ class GACrossSecGlobe(db.Model):
     drawing_no = db.Column(db.String(50), nullable=False)
 
 
+class GASheet4Globe(db.Model):
+    """Body/trim config -> Sheet4 reference drawing number (CS0xx.SLDDRW -
+    a whole separate reference drawing copied in wholesale, not a .SLDBLK
+    block - see app.services.solidworks_automation._generate_sheet4).
+
+    Same idea as GACrossSecGlobe above (Sheet2's cross-section lookup) plus
+    end_connection, and size/rating can hold a comma-separated list of
+    values in one cell (e.g. "1,4" or "ASME 150,ASME2500") matched the same
+    way GAGlobeTable's Overall Assembly columns are - see
+    app.services.gad_globe_lookup.find_sheet4_drawing_no()/_token_match()."""
+    __tablename__ = "ga_sheet4_globe"
+
+    id = db.Column(db.Integer, primary_key=True)
+    body_style = db.Column(db.String(50), nullable=False)
+    end_connection = db.Column(db.String(50), nullable=False)
+    size = db.Column(db.String(50), nullable=False)
+    rating = db.Column(db.String(50), nullable=False)
+    bonnet_type = db.Column(db.String(50), nullable=False)
+    trim_type = db.Column(db.String(50), nullable=False)
+    balancing = db.Column(db.String(50), nullable=False)
+    flow_direction = db.Column(db.String(50), nullable=False)
+    bal_seal_type = db.Column(db.String(50), nullable=False)
+    seat_type = db.Column(db.String(50), nullable=False)
+    packing_type = db.Column(db.String(50), nullable=False)
+    drawing_no = db.Column(db.String(50), nullable=False)
+
+
 class GADimValveGlobe(db.Model):
     """Body dimensions (A, B, C, AR) + valve weight, keyed off body config."""
     __tablename__ = "ga_dim_valve_globe"

@@ -1,16 +1,21 @@
 """
 Parses the "GAD Automation Solidworks" master workbook into rows ready to
-bulk-load into the 5 lookup tables app/services/gad_globe_lookup.py queries
-(ga_globe_table, ga_globe_hookup, ga_crosssec_globe, ga_dim_valve_globe,
-ga_dim_act_globe) - see app/models.py for the tables themselves.
+bulk-load into the 6 lookup tables app/services/gad_globe_lookup.py queries
+(ga_globe_table, ga_globe_hookup, ga_crosssec_globe, ga_sheet4_globe,
+ga_dim_valve_globe, ga_dim_act_globe) - see app/models.py for the tables
+themselves.
 
 The workbook is expected to have (some of) these sheets, matched by name:
     Overall Assy Selection          -> GAGlobeTable
     Hook Up Selection               -> GAGlobeHookUp
     Cross Sec Selection             -> GACrossSecGlobe
+    Sheet4 Selection                -> GASheet4Globe
     Dimension Table For Valve       -> GADimValveGlobe
     Dimension Table For Actuator    -> GADimActGlobe
-Any other sheets (e.g. a "Tools" index sheet) are ignored.
+Any other sheets (e.g. a "Tools" index sheet) are ignored. A single-sheet
+workbook (like the Sheet4 master's own fully_expanded_configuration.xlsx)
+uploaded via parse_single_table() doesn't need its sheet named "Sheet4
+Selection" at all - see that function's docstring.
 """
 import openpyxl
 
@@ -18,6 +23,7 @@ from app.models import (
     GAGlobeTable,
     GAGlobeHookUp,
     GACrossSecGlobe,
+    GASheet4Globe,
     GADimValveGlobe,
     GADimActGlobe,
 )
@@ -71,6 +77,20 @@ SHEET_MAP = {
         "Flow Direction": "flow_direction",
         "Drawing No.": "drawing_no",
     }),
+    "Sheet4 Selection": (GASheet4Globe, {
+        "Body Type": "body_style",
+        "End Connection": "end_connection",
+        "Size ": "size",
+        "Rating": "rating",
+        "Bonnet Type": "bonnet_type",
+        "Type": "trim_type",
+        "Balancing": "balancing",
+        "Flow Direction": "flow_direction",
+        "Balance Seal": "bal_seal_type",
+        "Seat Type": "seat_type",
+        "Packing": "packing_type",
+        "DWG No.": "drawing_no",
+    }),
     "Dimension Table For Valve": (GADimValveGlobe, {
         "Body_Style": "body_style",
         "End_connection": "end_connection",
@@ -103,7 +123,12 @@ MODELS_BY_TABLE = {model.__tablename__: model for model, _ in SHEET_MAP.values()
 TABLE_LABELS = {
     "ga_globe_table": "Overall Assembly Selection",
     "ga_globe_hookup": "Hook-Up Selection",
-    "ga_crosssec_globe": "Cross-Section Selection",
+    # Legacy/unused - Sheet2 no longer consults this table at all (replaced
+    # by ga_sheet4_globe below, now labeled "Cross-Section" itself). Kept
+    # only so a direct link to it (e.g. from history) doesn't 404; not
+    # listed in the sidebar or the GAD Masters overview page anymore.
+    "ga_crosssec_globe": "Cross-Section Selection (legacy, unused)",
+    "ga_sheet4_globe": "Cross-Section",
     "ga_dim_valve_globe": "Valve Dimensions",
     "ga_dim_act_globe": "Actuator Dimensions",
 }

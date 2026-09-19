@@ -4,9 +4,17 @@ drawing and export it to PDF - a Python/pywin32 port of GenerateSheet1/2/3
 in the old WinForms app's Form2.cs.
 
 Same overall approach as the original: open one shared .DRWDOT template,
-insert pre-built .SLDBLK blocks (GA block, hookup schematic, cross-section,
-nameplate) onto each sheet, push ~50 custom properties for the title block,
-rebuild, export all sheets to one PDF.
+insert pre-built .SLDBLK blocks (GA block, hookup schematic) onto Sheet1,
+push ~50 custom properties for the title block, insert the nameplate block
+onto Sheet3, rebuild, export all 3 sheets to one PDF. Sheet2 is different:
+it no longer holds a .SLDBLK cross-section block - it's replaced wholesale
+with a whole separate .SLDDRW reference drawing, chosen per-row from the
+ga_sheet4_globe master table (see
+app.services.gad_globe_lookup.find_sheet4_drawing_no) - see
+_generate_sheet2()'s docstring for why that copy needs a different mechanism
+(this table/lookup is still named after "Sheet4" - that's what this content
+used to be positioned as before it replaced the old Sheet2 outright; nothing
+about the master table or its GAD Masters page needed renaming for this).
 
 Runs synchronously in the Flask request (this app is expected to run on the
 same Windows machine that has SolidWorks installed and licensed - COM
@@ -53,7 +61,7 @@ GENERATION_STEPS = [
     "Sheet 1: inserting GA block",
     "Sheet 1: inserting hookup schematic",
     "Sheet 1 complete - title block properties set",
-    "Sheet 2 complete - cross-section inserted",
+    "Sheet 2 complete - reference drawing inserted",
     "Sheet 3 complete - nameplate inserted",
     "Rebuilding drawing",
     "Exporting PDF",
@@ -192,10 +200,10 @@ def generate_from_resolved(resolved: dict, progress_cb=None, on_pdf_ready=None, 
     app/blueprints/dashboard/routes.py's /globe/generate-server for how the
     browser polls this to show real step-by-step progress.
 
-    on_pdf_ready, if given, is called with the finished pdf_path as soon as
-    it's ready - letting the caller mark the job "done" (e.g. so the browser
-    can download it) *before* this function actually returns, since it then
-    keeps running to handle close_event below.
+    on_pdf_ready, if given, is called as on_pdf_ready(pdf_path, sldworks_path)
+    as soon as both files are saved - letting the caller mark the job "done"
+    (e.g. so the browser can download them) *before* this function actually
+    returns, since it then keeps running to handle close_event below.
 
     close_event, if given, is a threading.Event: once the PDF is ready, this
     blocks (instead of returning immediately) until that event is set (or
@@ -230,7 +238,10 @@ def generate_from_resolved(resolved: dict, progress_cb=None, on_pdf_ready=None, 
             report(GENERATION_STEPS[1], 1)
 
             _generate_sheet1(sw_app, model, drawing, resolved, report)
-            _generate_sheet2(sw_app, model, drawing, resolved, report)
+            # Sheet2 deletes and replaces the template's own Sheet2 tab (see
+            # its docstring), which invalidates the model/drawing COM
+            # references above - it returns fresh ones to use from here on.
+            model, drawing = _generate_sheet2(sw_app, model, drawing, resolved, report)
             _generate_sheet3(sw_app, model, drawing, resolved, report)
 
             model.ForceRebuild3(False)
@@ -244,7 +255,25 @@ def generate_from_resolved(resolved: dict, progress_cb=None, on_pdf_ready=None, 
             if not os.path.isdir(output_dir):
                 output_dir = tempfile.gettempdir()
             os.makedirs(output_dir, exist_ok=True)
+            sldworks_path = os.path.join(output_dir, "GA_Drawing.SLDDRW")
             pdf_path = os.path.join(output_dir, "GA_Drawing.pdf")
+
+            # Save the native SolidWorks drawing first - SaveAs infers the
+            # format from the extension, same call as the PDF export below
+            # just pointed at a different path. Doing this before the PDF
+            # export means the document is a saved file (not the untitled
+            # "Draw1" NewDocument() created) for that second SaveAs too,
+            # though that call doesn't actually depend on it.
+            result = model.Extension.SaveAs(
+                sldworks_path,
+                sw_const.swSaveAsCurrentVersion,
+                sw_const.swSaveAsOptions_Silent,
+                None,
+                0,
+                0,
+            )
+            if not _save_as_result(result):
+                raise GadGenerationError("SolidWorks drawing save failed.")
 
             result = model.Extension.SaveAs(
                 pdf_path,
@@ -259,7 +288,7 @@ def generate_from_resolved(resolved: dict, progress_cb=None, on_pdf_ready=None, 
             report(GENERATION_STEPS[8], 8)
 
         if on_pdf_ready:
-            on_pdf_ready(pdf_path)
+            on_pdf_ready(pdf_path, sldworks_path)
 
         if close_event is not None:
             # Leave SolidWorks open (Visible=True, same as the original) so
@@ -426,17 +455,91 @@ def _generate_sheet1(sw_app, model, drawing, resolved, report):
 
 
 def _generate_sheet2(sw_app, model, drawing, resolved, report):
-    drawing.ActivateSheet("Sheet2")
-    sketch_mgr = model.SketchManager
-    math_util = _wrap(sw_app.GetMathUtility(), "MathUtility")
-    sketch_mgr.InsertSketch(True)
+    """Replaces the template's own Sheet2 tab outright with a whole separate
+    .SLDDRW reference drawing (GAD_SHEET4_DIR/<resolved['sheet4_no']>.SLDDRW,
+    looked up via app.services.gad_globe_lookup.find_sheet4_drawing_no) -
+    Sheet2 no longer holds a .SLDBLK cross-section block, so this can't use
+    _insert_block()/MakeSketchBlockFromFile like Sheet1/Sheet3. SolidWorks
+    has no "insert sheet from another file" API call, so this mirrors the
+    UI's own "copy sheet, paste sheet" feature instead, verified reliably
+    (multiple repeated runs, including with real Sheet1 content already in
+    place) against a live SolidWorks 2022 session:
+      1. Delete the template's existing Sheet2 (selected as a whole SHEET
+         entity, not its contents, via Extension.DeleteSelection2) - this
+         doesn't prompt for confirmation the way the UI's Delete key would.
+      2. Open the reference file as its own document.
+      3. Select its (only) sheet as a whole SHEET entity and EditCopy it -
+         this puts the whole sheet on the clipboard.
+      4. Switch back to our drawing, select Sheet1 (the paste needs some
+         sheet selected to anchor to), and PasteSheet. IMPORTANT: the
+         source document from step 2 must stay open until *after* this
+         call - closing it first (even right after EditCopy) makes
+         PasteSheet silently return False every time. SolidWorks' "sheet on
+         the clipboard" isn't a plain OS clipboard payload; it still
+         depends on the source document being alive.
+      5. The pasted sheet lands with the source's own sheet name (e.g.
+         "Sheet2", from the reference file's own internal sheet name) -
+         renamed to "Sheet2" via ISheet.SetName (a no-op if it already
+         happened to match, otherwise resolving pywin32's own "(2)"
+         auto-rename of the collision). It also always lands right after
+         Sheet1 regardless of the anchor above (a real quirk of PasteSheet
+         on this SolidWorks version, not a mistake here) - fixed explicitly
+         with ReorderSheets afterward, using a SAFEARRAY of BSTR (a plain
+         Python list marshals as the wrong VARIANT subtype and ReorderSheets
+         just silently returns False instead of reordering).
+      6. Only now close the source document.
 
-    crosssec_dir = _config("GAD_CROSSSEC_BLOCK_DIR")
-    crosssec_block = os.path.join(crosssec_dir, f"{resolved['crosssec_no']}.SLDBLK")
-    _insert_block(sw_app, sketch_mgr, math_util, (0.0, 0.0, 0), crosssec_block, "Cross-section block")
+    Deleting a sheet disconnects pywin32's cached model/drawing COM
+    references from the live document (later calls on them raise "The
+    object invoked has disconnected from its clients") - this re-wraps
+    fresh ones from sw_app.ActiveDoc before returning, which the caller
+    must use from here on instead of its own now-stale model/drawing."""
+    sheet4_dir = _config("GAD_SHEET4_DIR")
+    sheet2_path = os.path.join(sheet4_dir, f"{resolved['sheet4_no']}.SLDDRW")
+    _require_file(sheet2_path, "Sheet2 reference drawing")
 
-    sketch_mgr.InsertSketch(True)
+    model.Extension.SelectByID2("Sheet2", "SHEET", 0, 0, 0, False, 0, None, 0)
+    model.Extension.DeleteSelection2(0)
+
+    result = sw_app.OpenDoc6(
+        sheet2_path, sw_const.swDocDRAWING, sw_const.swOpenDocOptions_Silent, "", 0, 0
+    )
+    src_raw = result[0] if isinstance(result, tuple) else result
+    if src_raw is None:
+        raise GadGenerationError(f"Failed to open Sheet2 reference drawing: {sheet2_path}")
+    src_model = _wrap(src_raw, "ModelDoc2")
+    src_drawing = _wrap(src_raw, "DrawingDoc")
+
+    try:
+        src_sheet_name = src_drawing.GetSheetNames()[0]
+        src_model.Extension.SelectByID2(src_sheet_name, "SHEET", 0, 0, 0, False, 0, None, 0)
+        src_model.EditCopy()
+
+        sw_app.ActivateDoc2(model.GetTitle(), False, 0)
+        model.Extension.SelectByID2("Sheet1", "SHEET", 0, 0, 0, False, 0, None, 0)
+        # Checked explicitly because a failed paste doesn't raise on its
+        # own, and an earlier version of this function that skipped the
+        # check went on to rename whatever GetCurrentSheet() returned when
+        # no new sheet was actually created - silently corrupting the
+        # drawing instead of failing loudly.
+        if not drawing.PasteSheet(sw_const.swInsertOption_AfterSelectedSheet, sw_const.swRenameOption_No):
+            raise GadGenerationError("Could not paste the Sheet2 reference drawing's sheet.")
+
+        new_sheet = _wrap(drawing.GetCurrentSheet(), "Sheet")
+        new_sheet.SetName("Sheet2")
+    finally:
+        sw_app.CloseDoc(src_model.GetTitle())
+
+    ordered = win32com.client.VARIANT(
+        pythoncom.VT_ARRAY | pythoncom.VT_BSTR, ["Sheet1", "Sheet2", "Sheet3"]
+    )
+    if not drawing.ReorderSheets(ordered):
+        raise GadGenerationError("Could not order Sheet2 after Sheet1.")
+
     report(GENERATION_STEPS[5], 5)
+
+    fresh_raw = sw_app.ActiveDoc
+    return _wrap(fresh_raw, "ModelDoc2"), _wrap(fresh_raw, "DrawingDoc")
 
 
 def _generate_sheet3(sw_app, model, drawing, resolved, report):
@@ -455,3 +558,5 @@ def _generate_sheet3(sw_app, model, drawing, resolved, report):
 
     sketch_mgr.InsertSketch(True)
     report(GENERATION_STEPS[6], 6)
+
+

@@ -11,5 +11,8 @@ Werkzeug==3.0.3
 openpyxl==3.1.5
 pywin32==312; sys_platform == "win32"
 
-# PDF report downloads (design calculation pages)
+# PDF report downloads (design calculation pages) - reportlab needs Pillow
+# and charset-normalizer at import time, not just for image-heavy reports.
 reportlab==5.0.1
+Pillow==12.3.0
+charset-normalizer==3.5.1

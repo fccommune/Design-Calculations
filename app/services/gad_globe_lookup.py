@@ -16,14 +16,27 @@ from app.models import (
     GAGlobeTable,
     GAGlobeHookUp,
     GACrossSecGlobe,
+    GASheet4Globe,
     GADimValveGlobe,
     GADimActGlobe,
 )
+from app.services.gad_masters_import import TABLE_LABELS
 
 
 class GadLookupError(Exception):
     """Raised when a required lookup row can't be found - mirrors the old
-    app's MessageBox.Show("No matching ... row ...") + early return."""
+    app's MessageBox.Show("No matching ... row ...") + early return.
+
+    table_name (a MODELS_BY_TABLE key, e.g. "ga_crosssec_globe") and
+    table_label (its GAD Masters display name, e.g. "Cross-Section") tell
+    the caller *which* master table needs a row added/fixed - routes.py
+    passes these through so the browser can point the user straight at
+    /gad-masters/<table_name> instead of a bare "no match" message."""
+
+    def __init__(self, message: str, table_name: str = None):
+        super().__init__(message)
+        self.table_name = table_name
+        self.table_label = TABLE_LABELS.get(table_name)
 
 
 def cell(row: dict, key: str) -> str:
@@ -82,7 +95,11 @@ def find_drawing_no(row: dict) -> str:
         .first()
     )
     if match is None:
-        raise GadLookupError("No matching GAGlobeTable row for this configuration.")
+        raise GadLookupError(
+            "No matching row found in the Overall Assembly master table for this "
+            "configuration - add a row there for this combination.",
+            table_name="ga_globe_table",
+        )
     return match.drawing_no
 
 
@@ -118,7 +135,11 @@ def find_hookup_no(row: dict) -> str:
         .first()
     )
     if match is None:
-        raise GadLookupError("No matching GAGlobeHookUp row for this configuration.")
+        raise GadLookupError(
+            "No matching row found in the Hook-Up Selection master table for this "
+            "configuration - add a row there for this combination.",
+            table_name="ga_globe_hookup",
+        )
     return match.schematic_no
 
 
@@ -150,7 +171,58 @@ def find_crosssec_drawing_no(row: dict) -> str:
         .first()
     )
     if match is None:
-        raise GadLookupError("No matching GACrossSecGlobe row for this configuration.")
+        raise GadLookupError(
+            "No matching row found in the Cross-Section master table for this "
+            "configuration - add a row there for this combination.",
+            table_name="ga_crosssec_globe",
+        )
+    return match.drawing_no
+
+
+def find_sheet4_drawing_no(row: dict) -> str:
+    """GASheet4Globe -> the Sheet4 reference drawing (CS0xx.SLDDRW).
+
+    Same exact-match fields as find_crosssec_drawing_no() (GACrossSecGlobe,
+    Sheet2's lookup) plus end_connection, and size/rating are matched the
+    same comma-token way find_drawing_no() above matches GAGlobeTable's
+    Overall Assembly columns (a master cell of "1,4" matches a BOM size of
+    "1" or "4"; "ASME 150,ASME2500" matches a rating of "ASME 150") - see
+    _token_match()."""
+    body_style = cell(row, "Body_Style")
+    end_connection = cell(row, "End _Connection")
+    bonnet_type = cell(row, "Bonnet _Type")
+    trim_type = cell(row, "Trim Type")
+    balancing = cell(row, "Balancing")
+    bal_seal_type = cell(row, "Bal Seal Type")
+    seat_type = cell(row, "Seat Type")
+    packing_type = cell(row, "Packing Type")
+    flow_direction = cell(row, "Flow_Direction")
+    size = cell(row, "Valve_Size ")
+    rating = cell(row, "Rating")
+
+    match = (
+        GASheet4Globe.query.filter(
+            GASheet4Globe.body_style == body_style,
+            GASheet4Globe.end_connection == end_connection,
+            GASheet4Globe.bonnet_type == bonnet_type,
+            GASheet4Globe.trim_type == trim_type,
+            GASheet4Globe.balancing == balancing,
+            GASheet4Globe.bal_seal_type == bal_seal_type,
+            GASheet4Globe.seat_type == seat_type,
+            GASheet4Globe.packing_type == packing_type,
+            GASheet4Globe.flow_direction == flow_direction,
+            _token_match(GASheet4Globe.size, size),
+            _token_match(GASheet4Globe.rating, rating),
+        )
+        .order_by(GASheet4Globe.id)
+        .first()
+    )
+    if match is None:
+        raise GadLookupError(
+            "No matching row found in the Sheet4 Selection master table for this "
+            "configuration - add a row there for this combination.",
+            table_name="ga_sheet4_globe",
+        )
     return match.drawing_no
 
 
@@ -183,7 +255,11 @@ def find_dimension_values(row: dict) -> dict:
         .first()
     )
     if body_match is None:
-        raise GadLookupError("No matching BODY dimension row found for this configuration.")
+        raise GadLookupError(
+            "No matching row found in the Valve Dimensions master table for this "
+            "configuration - add a row there for this combination.",
+            table_name="ga_dim_valve_globe",
+        )
 
     actuator_type = cell(row, "Act Type")
     actuator_size = cell(row, "Actuator Size")
@@ -201,7 +277,11 @@ def find_dimension_values(row: dict) -> dict:
         .first()
     )
     if act_match is None:
-        raise GadLookupError("No matching ACTUATOR dimension row found for this configuration.")
+        raise GadLookupError(
+            "No matching row found in the Actuator Dimensions master table for this "
+            "configuration - add a row there for this combination.",
+            table_name="ga_dim_act_globe",
+        )
 
     body_weight = body_match.weight or 0
     act_weight = act_match.weight or 0
@@ -223,8 +303,8 @@ def find_dimension_values(row: dict) -> dict:
 
 def resolve_globe_gad(row: dict) -> dict:
     """Does every database lookup GAD generation needs for one BOM row -
-    the GA block, hookup schematic and cross-section drawing numbers, plus
-    all ~50 title-block custom properties (dimension-table values and
+    the GA block, hookup schematic and Sheet2 reference drawing numbers,
+    plus all ~50 title-block custom properties (dimension-table values and
     plain pass-through fields alike) - and returns them as one flat,
     plain-data dict with no further database dependency.
 
@@ -303,7 +383,12 @@ def resolve_globe_gad(row: dict) -> dict:
     return {
         "drawing_no": find_drawing_no(row),
         "hookup_no": find_hookup_no(row),
-        "crosssec_no": find_crosssec_drawing_no(row),
+        # Not find_crosssec_drawing_no()/GACrossSecGlobe - Sheet2 no longer
+        # uses that lookup at all (see solidworks_automation.py's
+        # _generate_sheet2), replaced outright by sheet4_no's whole-drawing
+        # copy. That table/lookup function are left in place (unused) rather
+        # than deleted, in case this ever needs reverting.
+        "sheet4_no": find_sheet4_drawing_no(row),
         # Fixed placeholder, same as the original app - not looked up per-row.
         "nameplate": "MSD",
         "properties": properties,
