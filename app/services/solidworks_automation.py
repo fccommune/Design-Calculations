@@ -26,8 +26,10 @@ wrapper (which is what exposes the swconst enum names as
 win32com.client.constants.* below) actually gets built.
 """
 import os
+import sys
 import tempfile
 import threading
+import uuid
 import winreg
 
 import pythoncom
@@ -41,6 +43,26 @@ import win32com.client
 # the cache to a location that's always writable, same fix worker.py already
 # applies for its frozen-exe case.
 win32com.__gen_path__ = os.path.join(tempfile.gettempdir(), "gen_py")
+os.makedirs(win32com.__gen_path__, exist_ok=True)
+
+# By the time this module runs, `import win32com` above has already executed
+# win32com/__init__.py's own gen_py setup, which (when site-packages'
+# win32com\gen_py doesn't exist, as in a venv) points win32com.gen_py's
+# __path__ at a *version-specific* temp folder (e.g. %TEMP%\gen_py\3.12) and
+# registers that module in sys.modules. Reassigning win32com.__gen_path__
+# above does not touch that already-created module's __path__ - EnsureModule()
+# then writes generated wrappers into the flat folder set above, but
+# `import win32com.gen_py.<name>` still searches the stale versioned folder,
+# failing with "No module named 'win32com.gen_py.<clsid>x0x30x0'". Re-point
+# the already-imported module (or seed a fresh one) at the same flat folder.
+if "win32com.gen_py" in sys.modules:
+    sys.modules["win32com.gen_py"].__path__ = [win32com.__gen_path__]
+else:
+    import types
+
+    _gen_py = types.ModuleType("win32com.gen_py")
+    _gen_py.__path__ = [win32com.__gen_path__]
+    sys.modules["win32com.gen_py"] = _gen_py
 
 from win32com.client import constants as sw_const
 
@@ -75,6 +97,13 @@ def _noop_progress(step_text, step_index):
 
 # See generate_from_resolved()'s docstring for why this exists.
 _generation_lock = threading.Lock()
+
+# Tracks how many jobs are currently blocked waiting for _generation_lock, so
+# a queued job can report "position N" to the browser instead of the
+# progress bar just sitting frozen with no explanation - see
+# generate_from_resolved()'s on_queue_update.
+_queue_state_lock = threading.Lock()
+_queue_waiting = 0
 
 # SolidWorks' two automation type libraries - stable GUIDs across every
 # SolidWorks version (only the registered (major, minor) under each changes
@@ -157,26 +186,32 @@ def _save_as_result(raw):
     return raw
 
 
-def generate_globe_gad(row: dict, progress_cb=None, on_pdf_ready=None, close_event=None) -> str:
+def generate_globe_gad(
+    row: dict, progress_cb=None, on_pdf_ready=None, close_event=None, on_queue_update=None
+) -> str:
     """Runs the full Sheet1/2/3 pipeline for one Excel row and returns the
     exported PDF's path. Raises GadGenerationError / GadLookupError on any
     failure, same failure points as the WinForms version's MessageBox calls.
 
     Combines the database lookups and the SolidWorks automation in one call
     - only usable on a machine that has both a DB connection and SolidWorks
-    (e.g. worker.py). For the "resolve on the server, generate locally with
-    no DB dependency" split used by the downloadable GadGenerate.exe, see
+    (e.g. worker.py, or the /globe/generate-server route). See
     app.services.gad_globe_lookup.resolve_globe_gad() + generate_from_resolved()
-    below instead.
+    below for the underlying resolve/automate split.
 
-    progress_cb, on_pdf_ready and close_event: see generate_from_resolved()."""
+    progress_cb, on_pdf_ready, close_event and on_queue_update: see
+    generate_from_resolved()."""
     series = cell(row, "Series")
     if series not in ("10", "11"):
         raise GadGenerationError("This page only generates Globe valve (Series 10/11) drawings.")
 
     resolved = lookup.resolve_globe_gad(row)
     return generate_from_resolved(
-        resolved, progress_cb=progress_cb, on_pdf_ready=on_pdf_ready, close_event=close_event
+        resolved,
+        progress_cb=progress_cb,
+        on_pdf_ready=on_pdf_ready,
+        close_event=close_event,
+        on_queue_update=on_queue_update,
     )
 
 
@@ -187,18 +222,26 @@ def generate_globe_gad(row: dict, progress_cb=None, on_pdf_ready=None, close_eve
 _CLOSE_WAIT_TIMEOUT_SECONDS = 1200
 
 
-def generate_from_resolved(resolved: dict, progress_cb=None, on_pdf_ready=None, close_event=None) -> str:
+def generate_from_resolved(
+    resolved: dict, progress_cb=None, on_pdf_ready=None, close_event=None, on_queue_update=None
+) -> str:
     """Runs the full Sheet1/2/3 SolidWorks pipeline from an already-resolved
     dict (see app.services.gad_globe_lookup.resolve_globe_gad) and returns
     the exported PDF's path. No database access here at all - only
-    SolidWorks and the local GAD_* block/template files (see _config), so
-    this is what actually runs inside GadGenerate.exe on a user's own
-    machine, entirely offline apart from SolidWorks itself.
+    SolidWorks and the local GAD_* block/template files (see _config).
 
     progress_cb, if given, is called as progress_cb(step_text, step_index)
     after each milestone in GENERATION_STEPS completes - see
     app/blueprints/dashboard/routes.py's /globe/generate-server for how the
     browser polls this to show real step-by-step progress.
+
+    on_queue_update, if given, is called as on_queue_update(position) once
+    with a 1-based queue position if this call has to wait for another
+    generation already in progress (see _generation_lock below) to finish,
+    then again with 0 once it's this call's turn - lets multiple users
+    clicking "Generate on Server" around the same time see an honest
+    "waiting behind N other generation(s)" instead of a progress bar that
+    just looks stuck at 0%.
 
     on_pdf_ready, if given, is called as on_pdf_ready(pdf_path, sldworks_path)
     as soon as both files are saved - letting the caller mark the job "done"
@@ -207,15 +250,33 @@ def generate_from_resolved(resolved: dict, progress_cb=None, on_pdf_ready=None, 
 
     close_event, if given, is a threading.Event: once the PDF is ready, this
     blocks (instead of returning immediately) until that event is set (or
-    _CLOSE_WAIT_TIMEOUT_SECONDS elapses), then closes SolidWorks - discarding
-    any unsaved changes, no save prompt - before finally returning. This has
-    to happen on this exact thread: SolidWorks's COM object is apartment-
-    threaded, so only the thread that created it (this one) can safely call
-    it again later, which is why "close SolidWorks after the user
-    acknowledges" is a wait-then-continue here rather than a separate call
-    from whatever thread handles that later HTTP request."""
+    _CLOSE_WAIT_TIMEOUT_SECONDS elapses), then closes just the drawing this
+    job created (already saved above, so no prompt) before finally
+    returning - the SolidWorks application itself, and any other document
+    the user had open in it, are left alone. This has to happen on this
+    exact thread: SolidWorks's COM object is apartment-threaded, so only the
+    thread that created it (this one) can safely call it again later, which
+    is why "close the drawing after the user acknowledges" is a
+    wait-then-continue here rather than a separate call from whatever thread
+    handles that later HTTP request.
+
+    Multiple users can have this running "at once" in the sense that matters
+    to them - each gets their own drawing built in turn and then left open
+    in its own window/tab (see close_event above) so several finished
+    drawings can sit open side by side in the one shared SolidWorks
+    instance. The actual COM build of any one drawing is still serialized
+    (see _generation_lock) - SolidWorks's Sheet2 copy step depends on the
+    single Windows clipboard and on which document is currently "active",
+    both process-wide state, so two builds actually running at the same
+    instant would silently paste the wrong sheet into the wrong drawing."""
     report = progress_cb or _noop_progress
     sw_app = None
+    # Every job's on-disk output uses this same base name (see output_dir
+    # below) - without a per-job suffix, a second job's SaveAs would
+    # overwrite a first job's file before that first user has downloaded it,
+    # since the lock (and this function) only serializes the SolidWorks
+    # build, not how long the finished file sits waiting for its download.
+    job_id = uuid.uuid4().hex[:8]
 
     # SolidWorks is COM, and COM requires the calling thread to have an
     # initialized apartment before any Dispatch() call - true for a plain
@@ -223,14 +284,27 @@ def generate_from_resolved(resolved: dict, progress_cb=None, on_pdf_ready=None, 
     # which raises "CoInitialize has not been called" otherwise.
     pythoncom.CoInitialize()
     try:
-        # SolidWorks COM automation can only do one thing at a time - the
-        # old synchronous route serialized concurrent clicks for free (one
-        # Flask request blocked until done before the next started); this
-        # lock re-establishes that guarantee explicitly for the actual
-        # drawing-building steps. It's released before the close_event wait
-        # below, so one job sitting open awaiting the user's acknowledgment
-        # doesn't block everyone else's generations.
-        with _generation_lock:
+        # SolidWorks COM automation can only do one thing at a time (see this
+        # function's docstring) - the old synchronous route serialized
+        # concurrent clicks for free (one Flask request blocked until done
+        # before the next started); this lock re-establishes that guarantee
+        # explicitly for the actual drawing-building steps. It's released
+        # before the close_event wait below, so one job sitting open
+        # awaiting the user's acknowledgment doesn't block everyone else's
+        # generations.
+        global _queue_waiting
+        if not _generation_lock.acquire(blocking=False):
+            with _queue_state_lock:
+                _queue_waiting += 1
+                position = _queue_waiting
+            if on_queue_update:
+                on_queue_update(position)
+            _generation_lock.acquire()
+            with _queue_state_lock:
+                _queue_waiting -= 1
+        if on_queue_update:
+            on_queue_update(0)
+        try:
             sw_app = _connect()
             report(GENERATION_STEPS[0], 0)
 
@@ -255,8 +329,8 @@ def generate_from_resolved(resolved: dict, progress_cb=None, on_pdf_ready=None, 
             if not os.path.isdir(output_dir):
                 output_dir = tempfile.gettempdir()
             os.makedirs(output_dir, exist_ok=True)
-            sldworks_path = os.path.join(output_dir, "GA_Drawing.SLDDRW")
-            pdf_path = os.path.join(output_dir, "GA_Drawing.pdf")
+            sldworks_path = os.path.join(output_dir, f"GA_Drawing_{job_id}.SLDDRW")
+            pdf_path = os.path.join(output_dir, f"GA_Drawing_{job_id}.pdf")
 
             # Save the native SolidWorks drawing first - SaveAs infers the
             # format from the extension, same call as the PDF export below
@@ -286,6 +360,8 @@ def generate_from_resolved(resolved: dict, progress_cb=None, on_pdf_ready=None, 
             if not _save_as_result(result):
                 raise GadGenerationError("PDF export failed.")
             report(GENERATION_STEPS[8], 8)
+        finally:
+            _generation_lock.release()
 
         if on_pdf_ready:
             on_pdf_ready(pdf_path, sldworks_path)
@@ -296,10 +372,13 @@ def generate_from_resolved(resolved: dict, progress_cb=None, on_pdf_ready=None, 
             # "PDF generated" message (or the safety timeout above fires).
             close_event.wait(timeout=_CLOSE_WAIT_TIMEOUT_SECONDS)
             try:
-                sw_app.CloseAllDocuments(True)  # True = discard unsaved changes, no prompt
-                sw_app.ExitApp()
+                # Close only this job's drawing (already saved above, so this
+                # won't prompt) - NOT CloseAllDocuments/ExitApp, which would
+                # also discard and close any other document the user already
+                # had open in this same SolidWorks session.
+                sw_app.CloseDoc(model.GetTitle())
             except Exception:
-                pass  # best-effort - a user closing SolidWorks by hand first is fine too
+                pass  # best-effort - a user closing the drawing by hand first is fine too
 
         return pdf_path
     finally:

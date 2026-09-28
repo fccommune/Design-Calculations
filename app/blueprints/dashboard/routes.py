@@ -220,80 +220,14 @@ def globe_solidworks_check():
     return jsonify(solidworks_diagnostics())
 
 
-@dashboard_bp.route("/globe/generate", methods=["POST"])
-@login_required
-def globe_generate():
-    """Resolves the master-table lookups for one BOM row (drawing/hookup/
-    cross-section numbers, dimension values, all title-block properties -
-    see resolve_globe_gad) right here on the server, then packages the
-    result into a small downloadable zip: the resolved job.json plus a
-    pre-built, self-contained GadGenerate.exe. The browser downloads that
-    zip; the user unzips it on their own machine (which needs SolidWorks
-    installed, but not this web app, Python, or any database access) and
-    double-clicks the exe to actually drive SolidWorks and produce the PDF.
-
-    This is why resolution happens here rather than in the exe: it needs
-    the database, and doing it now means a bad row (no matching master
-    data) is reported immediately, instead of only after downloading and
-    running something."""
-    payload = request.get_json(silent=True) or {}
-    row = payload.get("row")
-    if not isinstance(row, dict):
-        return jsonify({"error": "No row selected."}), 400
-
-    series = cell(row, "Series")
-    if series not in ("10", "11", "20", "21"):
-        return jsonify({"error": "Please fill a correct Valve Series."}), 400
-    if series in ("20", "21"):
-        return jsonify({"error": "Butterfly valve (Series 20/21) generation isn't implemented yet - only Globe (10/11)."}), 400
-
-    try:
-        resolved = resolve_globe_gad(row)
-    except GadLookupError as exc:
-        return jsonify({
-            "error": str(exc),
-            "error_table_name": exc.table_name,
-            "error_table_label": exc.table_label,
-        }), 422
-
-    downloads_dir = os.path.join(current_app.static_folder, "downloads")
-    exe_path = os.path.join(downloads_dir, "GadGenerate.exe")
-    if not os.path.exists(exe_path):
-        return jsonify({"error": "GadGenerate.exe isn't available on the server yet - contact your admin."}), 500
-
-    dwg_no = (resolved.get("properties") or {}).get("DWG_NO") or "GAD"
-    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in dwg_no)
-
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("job.json", json.dumps(resolved, indent=2))
-        zf.write(exe_path, "GadGenerate.exe")
-        env_example_path = os.path.join(downloads_dir, ".env.example")
-        if os.path.exists(env_example_path):
-            zf.write(env_example_path, ".env.example")
-        readme_path = os.path.join(downloads_dir, "README.txt")
-        if os.path.exists(readme_path):
-            zf.write(readme_path, "README.txt")
-    buffer.seek(0)
-
-    return send_file(
-        buffer,
-        mimetype="application/zip",
-        as_attachment=True,
-        download_name=f"{safe_name}_GAD_package.zip",
-    )
-
-
 @dashboard_bp.route("/globe/generate-server", methods=["POST"])
 @login_required
 def globe_generate_server():
     """Kicks off PDF generation directly on whichever machine runs this
-    Flask process - the "single dedicated server" option: only works if
-    that machine itself has SolidWorks installed and licensed (e.g. the
-    whole app deployed on .167). Alternative to /globe/generate's download-
-    and-run-locally package for that deployment shape, where there's no
-    need to download anything since everyone's browser already points at
-    the SolidWorks machine.
+    Flask process - only works if that machine itself has SolidWorks
+    installed and licensed (e.g. the whole app deployed on .167). There's
+    no need to download anything since everyone's browser already points
+    at the SolidWorks machine.
 
     Runs the actual generation in a background thread rather than blocking
     this request, so the browser can poll /globe/generate-server/<token>/
@@ -332,6 +266,14 @@ def globe_generate_server():
                 def on_progress(step_text, step_index):
                     gad_progress.update(token, step_text, step_index)
 
+                def on_queue_update(position):
+                    # position > 0: another generation is still being built,
+                    # this one is waiting its turn - position 0: it's this
+                    # job's turn now. Lets concurrent "Generate on Server"
+                    # clicks from different users show an honest queue
+                    # status instead of a progress bar stuck at 0%.
+                    gad_progress.set_queue_position(token, position)
+
                 def on_pdf_ready(pdf_path, sldworks_path):
                     # Marks the job downloadable immediately - the thread
                     # keeps running after this to hold SolidWorks open until
@@ -346,6 +288,7 @@ def globe_generate_server():
                     progress_cb=on_progress,
                     on_pdf_ready=on_pdf_ready,
                     close_event=close_event,
+                    on_queue_update=on_queue_update,
                 )
             except SolidWorksNotInstalledError as exc:
                 gad_progress.fail(token, str(exc))
@@ -371,6 +314,7 @@ def globe_generate_server_progress(token):
         "step": job["step"],
         "step_index": job["step_index"],
         "total_steps": job["total_steps"],
+        "queue_position": job["queue_position"],
         "done": job["done"],
         "error": job["error"],
         "error_table_name": job["error_table_name"],

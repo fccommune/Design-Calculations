@@ -54,6 +54,7 @@ def start_job(total_steps: int) -> str:
             "step": "Starting...",
             "step_index": -1,
             "total_steps": total_steps,
+            "queue_position": 0,
             "done": False,
             "error": None,
             "error_table_name": None,
@@ -95,6 +96,17 @@ def update(token: str, step: str, step_index: int):
         if job is not None:
             job["step"] = step
             job["step_index"] = step_index
+
+
+def set_queue_position(token: str, position: int):
+    """position is 1-based ("2nd in line") while waiting for another
+    generation to finish building, or 0 once this job has the SolidWorks
+    lock and its own build has started - see
+    solidworks_automation.generate_from_resolved's on_queue_update."""
+    with _lock:
+        job = _jobs.get(token)
+        if job is not None:
+            job["queue_position"] = position
 
 
 def finish(

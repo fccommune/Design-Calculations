@@ -10,6 +10,7 @@
         --pf-surface:#ffffff;
         --pf-muted:#8a94a6;
         --pf-bg-soft:#f7f8fc;
+        --pf-queue:#e8590c;
     }
 
     .pf-hero{ display:flex; align-items:center; gap:14px; }
@@ -130,47 +131,165 @@
 
     /* --- Generate on Server: step-by-step progress --- */
     .pf-progress-modal .modal-content{ border:none; border-radius:14px; overflow:hidden; }
-    .pf-progress-header{ padding:26px 28px 6px; text-align:center; }
+    .pf-progress-header{
+        padding:26px 28px 6px; text-align:center; position:relative; overflow:hidden;
+        background-image:
+            linear-gradient(rgba(67,97,238,.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(67,97,238,.06) 1px, transparent 1px);
+        background-size:18px 18px;
+        animation:pf-grid-pan 7s linear infinite;
+    }
+    @keyframes pf-grid-pan{
+        from{ background-position:0 0, 0 0; }
+        to{ background-position:36px 36px, 36px 36px; }
+    }
+
+    .pf-progress-icon-wrap{ position:relative; width:52px; height:52px; margin:0 auto 14px; }
     .pf-progress-header .pf-progress-icon{
-        width:52px; height:52px; border-radius:50%; margin:0 auto 14px; font-size:22px;
+        width:52px; height:52px; border-radius:50%; font-size:22px;
         display:flex; align-items:center; justify-content:center;
         background:linear-gradient(135deg,var(--pf-primary),var(--pf-accent)); color:#fff;
         box-shadow:0 6px 16px rgba(67,97,238,.28); animation:pf-pulse 1.8s ease-in-out infinite;
     }
-    .pf-progress-header h5{ font-weight:700; color:#1a1f2e; margin-bottom:2px; }
-    .pf-progress-header p{ font-size:12.5px; color:var(--pf-muted); margin-bottom:0; }
+    .pf-progress-header h5{ font-weight:700; color:#1a1f2e; margin-bottom:2px; position:relative; }
+    .pf-progress-header p{
+        font-size:12.5px; color:var(--pf-muted); margin-bottom:0; position:relative;
+        display:flex; align-items:center; justify-content:center; gap:7px;
+    }
     @keyframes pf-pulse{
         0%,100%{ box-shadow:0 6px 16px rgba(67,97,238,.28); }
         50%{ box-shadow:0 6px 22px rgba(67,97,238,.5); }
     }
 
-    .pf-progress-track{ height:6px; border-radius:99px; background:var(--pf-bg-soft); margin:18px 28px 6px; overflow:hidden; }
+    /* Spinning "connecting/working" ring around the icon - only while active */
+    .pf-progress-ring{
+        position:absolute; inset:-6px; border-radius:50%; opacity:0; transition:opacity .2s ease;
+        background:conic-gradient(from 0deg, transparent 0%, var(--pf-primary) 92%, transparent 100%);
+        -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+                mask:radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+        animation:pf-ring-spin 1s linear infinite;
+    }
+    .pf-progress-icon-wrap.is-active .pf-progress-ring{ opacity:1; }
+    @keyframes pf-ring-spin{ to{ transform:rotate(360deg); } }
+
+    .pf-progress-icon.pf-icon-pop{ animation:pf-icon-pop .45s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes pf-icon-pop{
+        0%{ transform:scale(.4); opacity:.4; }
+        60%{ transform:scale(1.15); opacity:1; }
+        100%{ transform:scale(1); }
+    }
+    .pf-progress-icon.pf-icon-shake{ animation:pf-icon-shake .5s; }
+    @keyframes pf-icon-shake{
+        10%,90%{ transform:translateX(-1px); } 20%,80%{ transform:translateX(2px); }
+        30%,50%,70%{ transform:translateX(-4px); } 40%,60%{ transform:translateX(4px); }
+    }
+
+    /* Small rotating isometric cube next to the subtitle - a generic "3D
+       model being built" motif (deliberately not the SolidWorks logo). */
+    .pf-progress-cube-wrap{ perspective:120px; width:14px; height:14px; flex-shrink:0; }
+    .pf-progress-cube{
+        position:relative; width:100%; height:100%; transform-style:preserve-3d;
+        animation:pf-cube-spin 2.6s linear infinite;
+    }
+    .pf-progress-cube .face{
+        position:absolute; width:14px; height:14px; opacity:.88;
+        background:linear-gradient(135deg,var(--pf-primary),var(--pf-accent));
+        border:1px solid rgba(255,255,255,.5);
+    }
+    .pf-progress-cube .face.front{ transform:translateZ(7px); }
+    .pf-progress-cube .face.back{ transform:rotateY(180deg) translateZ(7px); }
+    .pf-progress-cube .face.right{ transform:rotateY(90deg) translateZ(7px); }
+    .pf-progress-cube .face.left{ transform:rotateY(-90deg) translateZ(7px); }
+    .pf-progress-cube .face.top{ transform:rotateX(90deg) translateZ(7px); }
+    .pf-progress-cube .face.bottom{ transform:rotateX(-90deg) translateZ(7px); }
+    @keyframes pf-cube-spin{
+        from{ transform:rotateX(-18deg) rotateY(0deg); }
+        to{ transform:rotateX(-18deg) rotateY(360deg); }
+    }
+
+    .pf-progress-track{ height:6px; border-radius:99px; background:var(--pf-bg-soft); margin:18px 28px 6px; overflow:hidden; position:relative; }
     .pf-progress-fill{
         height:100%; width:0%; border-radius:99px; background:linear-gradient(90deg,var(--pf-primary),var(--pf-accent));
-        transition:width .45s cubic-bezier(.4,0,.2,1);
+        transition:width .45s cubic-bezier(.4,0,.2,1); position:relative; overflow:hidden;
     }
-    .pf-progress-pct{ text-align:center; font-size:11px; font-weight:700; color:var(--pf-primary); margin-bottom:10px; }
+    .pf-progress-fill.is-active::after{
+        content:""; position:absolute; inset:0; transform:translateX(-100%);
+        background:linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
+        animation:pf-shimmer 1.3s ease-in-out infinite;
+    }
+    @keyframes pf-shimmer{
+        0%{ transform:translateX(-100%); } 100%{ transform:translateX(100%); }
+    }
+    .pf-progress-pct{ text-align:center; font-size:11px; font-weight:700; color:var(--pf-primary); margin-bottom:10px; transition:color .2s ease; }
+
+    /* --- Queued state: its own amber theme so "waiting behind someone
+       else" never looks like "step 1 is running" (see runGenerateServer's
+       queue handling in the script block). --- */
+    .pf-progress-header.is-queued{
+        background-image:
+            linear-gradient(rgba(232,89,12,.07) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(232,89,12,.07) 1px, transparent 1px);
+    }
+    .pf-progress-icon-wrap.is-queued .pf-progress-ring{
+        background:conic-gradient(from 0deg, transparent 0%, var(--pf-queue) 92%, transparent 100%);
+    }
+    .pf-progress-icon-wrap.is-queued .pf-progress-icon{
+        background:linear-gradient(135deg,#f59f00,var(--pf-queue));
+        box-shadow:0 6px 16px rgba(232,89,12,.32);
+        animation:pf-hourglass-flip 2.4s ease-in-out infinite;
+    }
+    @keyframes pf-hourglass-flip{
+        0%,38%{ transform:rotate(0deg); }
+        50%,88%{ transform:rotate(180deg); }
+        100%{ transform:rotate(360deg); }
+    }
+    #progressSubtext.is-queued{ color:var(--pf-queue); font-weight:700; }
+    .pf-progress-pct.is-queued{ color:var(--pf-queue); }
+
+    .pf-progress-fill.is-queued{
+        width:32% !important; background:linear-gradient(90deg,#f59f00,var(--pf-queue)) !important;
+        animation:pf-queue-slide 1.4s ease-in-out infinite;
+    }
+    .pf-progress-fill.is-queued::after{ content:none; }
+    @keyframes pf-queue-slide{
+        0%{ transform:translateX(-110%); } 100%{ transform:translateX(310%); }
+    }
+
+    .pf-steps.is-queued{ opacity:.4; filter:grayscale(.4); transition:opacity .25s ease, filter .25s ease; }
 
     .pf-steps{ list-style:none; margin:0; padding:6px 28px 26px; }
     .pf-step{ display:flex; align-items:center; gap:12px; padding:7px 0; position:relative; }
     .pf-step-dot{
-        width:24px; height:24px; border-radius:50%; flex-shrink:0; font-size:10.5px; font-weight:700;
+        position:relative; width:24px; height:24px; border-radius:50%; flex-shrink:0; font-size:10.5px; font-weight:700;
         display:flex; align-items:center; justify-content:center; border:2px solid var(--pf-border);
         background:#fff; color:var(--pf-muted); transition:.25s ease; z-index:1;
     }
     .pf-step-label{ font-size:12.5px; color:var(--pf-muted); font-weight:600; transition:.2s ease; }
 
     .pf-step.active .pf-step-dot{ border-color:var(--pf-primary); color:var(--pf-primary); background:#eef1fe; animation:pf-dot-spin 1s linear infinite; }
-    .pf-step.active .pf-step-label{ color:#1a1f2e; }
-    .pf-step.done .pf-step-dot{ border-color:#12a454; background:#12a454; color:#fff; }
+    .pf-step.active .pf-step-dot::before{
+        content:""; position:absolute; inset:-3px; border-radius:50%;
+        background:conic-gradient(from 0deg, transparent 0%, var(--pf-primary) 85%, transparent 100%);
+        -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+                mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+        animation:pf-ring-spin .9s linear infinite;
+    }
+    .pf-step.active .pf-step-label{ color:#1a1f2e; animation:pf-label-in .25s ease; }
+    .pf-step.done .pf-step-dot{ border-color:#12a454; background:#12a454; color:#fff; animation:pf-dot-pop .35s cubic-bezier(.34,1.56,.64,1); }
     .pf-step.done .pf-step-label{ color:#1a1f2e; }
-    .pf-step.error .pf-step-dot{ border-color:#e03131; background:#e03131; color:#fff; }
+    .pf-step.error .pf-step-dot{ border-color:#e03131; background:#e03131; color:#fff; animation:pf-icon-shake .5s; }
     .pf-step.error .pf-step-label{ color:#e03131; }
 
     @keyframes pf-dot-spin{
         0%{ box-shadow:0 0 0 0 rgba(67,97,238,.35); }
         70%{ box-shadow:0 0 0 6px rgba(67,97,238,0); }
         100%{ box-shadow:0 0 0 0 rgba(67,97,238,0); }
+    }
+    @keyframes pf-dot-pop{
+        0%{ transform:scale(.6); } 60%{ transform:scale(1.2); } 100%{ transform:scale(1); }
+    }
+    @keyframes pf-label-in{
+        from{ opacity:.5; transform:translateX(-3px); } to{ opacity:1; transform:translateX(0); }
     }
 
     .pf-step-connector{ position:absolute; left:11.5px; top:26px; width:1px; height:calc(100% - 4px); background:var(--pf-border); z-index:0; }
@@ -259,9 +378,6 @@
                     <button type="button" class="pf-btn-primary" id="generateServerBtn" disabled title="Generates the PDF right now, using SolidWorks on the server this app is running on">
                         <i class="fas fa-server mr-1"></i> Generate on Server
                     </button>
-                    <button type="button" class="pf-btn-success" id="generateBtn" disabled title="Downloads a package to generate the PDF locally, on your own computer's SolidWorks">
-                        <i class="fas fa-file-download mr-1"></i> Download GAD Package
-                    </button>
                 </div>
             </div>
         </div>
@@ -316,10 +432,25 @@
 <div class="modal fade pf-progress-modal" id="progressModal" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="pf-progress-header">
-                <div class="pf-progress-icon" id="progressIcon"><i class="fas fa-server"></i></div>
+            <div class="pf-progress-header" id="progressHeader">
+                <div class="pf-progress-icon-wrap" id="progressIconWrap">
+                    <div class="pf-progress-ring"></div>
+                    <div class="pf-progress-icon" id="progressIcon"><i class="fas fa-server"></i></div>
+                </div>
                 <h5>Generating GAD Drawing</h5>
-                <p>Driving SolidWorks on the server - please keep this open.</p>
+                <p>
+                    <span class="pf-progress-cube-wrap" aria-hidden="true">
+                        <span class="pf-progress-cube">
+                            <span class="face front"></span>
+                            <span class="face back"></span>
+                            <span class="face right"></span>
+                            <span class="face left"></span>
+                            <span class="face top"></span>
+                            <span class="face bottom"></span>
+                        </span>
+                    </span>
+                    <span id="progressSubtext">Driving SolidWorks on the server - please keep this open.</span>
+                </p>
             </div>
             <div class="pf-progress-track"><div class="pf-progress-fill" id="progressFill"></div></div>
             <div class="pf-progress-pct" id="progressPct">0%</div>
@@ -335,7 +466,6 @@
 (function () {
     const UPLOAD_URL = "{{ url_for('dashboard.globe_upload') }}";
     const FIELD_OPTIONS_URL = "{{ url_for('dashboard.globe_field_options') }}";
-    const GENERATE_URL = "{{ url_for('dashboard.globe_generate') }}";
     const GENERATE_SERVER_URL = "{{ url_for('dashboard.globe_generate_server') }}";
     // Flask needs a real token to build these, so build them once with a
     // placeholder and swap it in at request time.
@@ -379,12 +509,14 @@
     const rowDetailsPanel = document.getElementById('rowDetailsPanel');
     const rowDetailsGrid = document.getElementById('rowDetailsGrid');
     const selectedInfo = document.getElementById('selectedInfo');
-    const generateBtn = document.getElementById('generateBtn');
     const generateServerBtn = document.getElementById('generateServerBtn');
     const progressStepsList = document.getElementById('progressStepsList');
     const progressFill = document.getElementById('progressFill');
     const progressPct = document.getElementById('progressPct');
     const progressIcon = document.getElementById('progressIcon');
+    const progressIconWrap = document.getElementById('progressIconWrap');
+    const progressSubtext = document.getElementById('progressSubtext');
+    const progressHeader = document.getElementById('progressHeader');
 
     let currentHeaders = [];
     let currentRows = [];
@@ -554,7 +686,6 @@
         currentRows = rows;
         selectedIndex = null;
         editedRow = null;
-        generateBtn.disabled = true;
         generateServerBtn.disabled = true;
         selectedInfo.textContent = 'No row selected.';
         selectedInfo.classList.remove('has-selection');
@@ -594,7 +725,6 @@
         }
         selectedInfo.textContent = note;
         selectedInfo.classList.add('has-selection');
-        generateBtn.disabled = false;
         generateServerBtn.disabled = false;
     }
 
@@ -702,16 +832,14 @@
 
     const mismatchFieldList = document.getElementById('mismatchFieldList');
     const generateAnywayBtn = document.getElementById('generateAnywayBtn');
-    let pendingAction = null;
 
-    function checkMismatchesThenRun(action) {
+    function checkMismatchesThenRun() {
         if (selectedIndex === null || !editedRow) return;
 
         const mismatchedFields = Array.from(rowDetailsGrid.querySelectorAll('.pf-detail-input.mismatch'))
             .map(function (el) { return el.dataset.field; });
 
         if (mismatchedFields.length) {
-            pendingAction = action;
             mismatchFieldList.innerHTML = mismatchedFields.map(function (f) {
                 return '<div>&bull; ' + escapeHtml(f) + '</div>';
             }).join('');
@@ -719,67 +847,15 @@
             return;
         }
 
-        runAction(action);
+        runGenerateServer();
     }
 
-    function runAction(action) {
-        return action === 'server' ? runGenerateServer() : runGenerate();
-    }
-
-    generateBtn.addEventListener('click', function () { checkMismatchesThenRun('package'); });
-    generateServerBtn.addEventListener('click', function () { checkMismatchesThenRun('server'); });
+    generateServerBtn.addEventListener('click', checkMismatchesThenRun);
 
     generateAnywayBtn.addEventListener('click', function () {
         $('#mismatchModal').modal('hide');
-        runAction(pendingAction);
+        runGenerateServer();
     });
-
-    async function runGenerate() {
-        hideAlert();
-
-        generateBtn.disabled = true;
-        const originalHtml = generateBtn.innerHTML;
-        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Preparing package...';
-
-        try {
-            const resp = await fetch(GENERATE_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ row: editedRow }),
-            });
-
-            if (!resp.ok) {
-                const data = await resp.json().catch(() => ({}));
-                showAlert(data.error || 'Could not prepare the GAD package.', 'danger', data.error_table_name, data.error_table_label);
-                return;
-            }
-
-            const blob = await resp.blob();
-            const disposition = resp.headers.get('Content-Disposition') || '';
-            const match = /filename="?([^";]+)"?/.exec(disposition);
-            const filename = match ? match[1] : 'GAD_package.zip';
-
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-
-            showAlert(
-                'Package downloaded: ' + filename + '. Unzip it on a computer with SolidWorks installed, ' +
-                'then double-click GadGenerate.exe (see the included README.txt for first-time setup).',
-                'success'
-            );
-        } catch (err) {
-            showAlert('Could not prepare the GAD package: ' + err, 'danger');
-        } finally {
-            generateBtn.disabled = false;
-            generateBtn.innerHTML = originalHtml;
-        }
-    }
 
     function renderProgressSteps() {
         progressStepsList.innerHTML = GENERATION_STEP_LABELS.map(function (label, i) {
@@ -841,12 +917,23 @@
             const token = data.token;
             renderProgressSteps();
             updateProgressUI(-1, GENERATION_STEP_LABELS.length, null);
+            progressIcon.classList.remove('pf-icon-pop', 'pf-icon-shake');
             progressIcon.style.background = '';
             progressIcon.innerHTML = '<i class="fas fa-server"></i>';
+            progressHeader.classList.remove('is-queued');
+            progressIconWrap.classList.remove('is-queued');
+            progressIconWrap.classList.add('is-active');
+            progressSubtext.classList.remove('is-queued');
+            progressPct.classList.remove('is-queued');
+            progressStepsList.classList.remove('is-queued');
+            progressFill.classList.remove('is-queued');
+            progressFill.classList.add('is-active');
+            progressSubtext.textContent = 'Driving SolidWorks on the server - please keep this open.';
             $('#progressModal').modal('show');
 
             const progressUrl = GENERATE_SERVER_PROGRESS_TMPL.replace('__TOKEN__', token);
             let job;
+            let wasQueued = false;
             while (true) {
                 const pResp = await fetch(progressUrl);
                 job = await pResp.json().catch(() => null);
@@ -854,14 +941,63 @@
                     job = { done: true, error: (job && job.error) || 'Lost track of the generation job.' };
                     break;
                 }
+
+                // Another user's generation may still be mid-build - only one
+                // drawing can actually be driven through SolidWorks at once
+                // (see solidworks_automation.generate_from_resolved), so this
+                // job waits its turn. Without this, the progress bar would
+                // just look frozen at 0% with no explanation.
+                if (job.queue_position > 0) {
+                    wasQueued = true;
+                    progressIcon.innerHTML = '<i class="fas fa-hourglass-half"></i>';
+                    progressSubtext.textContent = job.queue_position === 1
+                        ? 'Waiting - one other GAD is generating right now. Yours will start automatically.'
+                        : 'Waiting - ' + job.queue_position + ' other GADs are ahead of yours in the queue.';
+                    progressHeader.classList.add('is-queued');
+                    progressIconWrap.classList.add('is-queued');
+                    progressSubtext.classList.add('is-queued');
+                    progressPct.classList.add('is-queued');
+                    progressFill.classList.add('is-queued');
+                    progressStepsList.classList.add('is-queued');
+                    progressPct.textContent = 'In queue';
+                    // step_index is still -1 at this point (nothing has
+                    // actually started for this job yet), which would
+                    // otherwise make updateProgressUI light up step 1 as
+                    // "active" - contradicting the "waiting" message above
+                    // it. Pass -2 instead so no step is marked active while
+                    // genuinely queued.
+                    updateProgressUI(-2, job.total_steps, null);
+                    if (job.done) break;
+                    await sleep(700);
+                    continue;
+                } else if (wasQueued) {
+                    wasQueued = false;
+                    progressIcon.innerHTML = '<i class="fas fa-server"></i>';
+                    progressSubtext.textContent = 'Driving SolidWorks on the server - please keep this open.';
+                    progressHeader.classList.remove('is-queued');
+                    progressIconWrap.classList.remove('is-queued');
+                    progressSubtext.classList.remove('is-queued');
+                    progressPct.classList.remove('is-queued');
+                    progressFill.classList.remove('is-queued');
+                    progressStepsList.classList.remove('is-queued');
+                }
+
                 updateProgressUI(job.step_index, job.total_steps, job.error !== null ? job.step_index + 1 : null);
                 if (job.done) break;
                 await sleep(700);
             }
 
+            progressIconWrap.classList.remove('is-active', 'is-queued');
+            progressFill.classList.remove('is-active', 'is-queued');
+            progressHeader.classList.remove('is-queued');
+            progressSubtext.classList.remove('is-queued');
+            progressPct.classList.remove('is-queued');
+            progressStepsList.classList.remove('is-queued');
+
             if (job.error) {
                 progressIcon.innerHTML = '<i class="fas fa-times"></i>';
                 progressIcon.style.background = 'linear-gradient(135deg,#e03131,#c92a2a)';
+                progressIcon.classList.add('pf-icon-shake');
                 await sleep(600);
                 $('#progressModal').modal('hide');
                 showAlert(job.error, 'danger', job.error_table_name, job.error_table_label);
@@ -870,6 +1006,7 @@
 
             progressIcon.innerHTML = '<i class="fas fa-check"></i>';
             progressIcon.style.background = 'linear-gradient(135deg,#12a454,#0d8c46)';
+            progressIcon.classList.add('pf-icon-pop');
             await sleep(500);
             $('#progressModal').modal('hide');
             progressIcon.style.background = '';
@@ -887,6 +1024,12 @@
             pendingSolidWorksCloseToken = token;
             showAlert('PDF and SolidWorks drawing generated successfully - downloaded as one zip file.', 'success');
         } catch (err) {
+            progressIconWrap.classList.remove('is-active', 'is-queued');
+            progressFill.classList.remove('is-active', 'is-queued');
+            progressHeader.classList.remove('is-queued');
+            progressSubtext.classList.remove('is-queued');
+            progressPct.classList.remove('is-queued');
+            progressStepsList.classList.remove('is-queued');
             $('#progressModal').modal('hide');
             showAlert('GAD generation failed: ' + err, 'danger');
         } finally {

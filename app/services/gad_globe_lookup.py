@@ -312,9 +312,8 @@ def resolve_globe_gad(row: dict) -> dict:
     - This function needs the database (master lookup tables) but not
       SolidWorks - runs on the web server.
     - app.services.solidworks_automation.generate_from_resolved(...) needs
-      SolidWorks but not the database - runs locally on whichever machine
-      actually has SolidWorks, using only what this function already
-      resolved (see GadGenerate.exe / local_generate.py).
+      SolidWorks but not the database - runs using only what this function
+      already resolved.
 
     Raises GadLookupError if any of the 4 master-table lookups misses.
     """
@@ -328,11 +327,11 @@ def resolve_globe_gad(row: dict) -> dict:
     properties = {
         "CUSTOMER": cell(row, "Customer"),
         "PROJECT": cell(row, "Project"),
-        "PO_NO": cell(row, "PO.No"),
+        "PO_NO.": cell(row, "PO.No"),
         "END_USER": cell(row, "End User"),
         "TAG_NO": cell(row, "Tag No"),
         "SERIAL_NO": cell(row, "Serial No"),
-        "DWG_NO": cell(row, "Dwg No"),
+        "Dwg No": cell(row, "Dwg No"),
         "DATE": cell(row, "Date"),
         "DRN": cell(row, "DRN"),
         "CHD": cell(row, "CHD"),
@@ -341,7 +340,7 @@ def resolve_globe_gad(row: dict) -> dict:
         "Line2": f"SIZE {valve_size} in {rating}",
         "Line3": f"SERIES {actuator_series} ACTUATOR",
         "Line4": actuator_size,
-        "Iss": "1",
+        "ISSUE": "1",
         "OA_NO.": cell(row, "OANo"),
         "Rating.": rating,
         "Act Series.": actuator_series,
